@@ -1,5 +1,13 @@
 # Shelly Scripts Backup для Home Assistant
 
+[![GitHub Release][releases-shield]][releases]
+[![GitHub Activity][commits-shield]][commits]
+[![License][license-shield]](LICENSE)
+[![HACS][hacs-shield]][hacs]
+
+![Project Maintenance][maintenance-shield]
+[![Community Forum][forum-shield]][forum]
+
 Кастомная интеграция для Home Assistant, которая автоматически создает резервные копии скриптов с устройств Shelly Gen2+.
 
 ## Возможности
@@ -25,18 +33,18 @@
 
 ## Установка
 
-### HACS (рекомендуется)
+### Вариант 1: HACS (рекомендуется)
 
-1. Откройте HACS в Home Assistant
-2. Перейдите в "Integrations"
-3. Нажмите на три точки в правом верхнем углу
-4. Выберите "Custom repositories"
-5. Добавьте URL этого репозитория
-6. Выберите категорию "Integration"
-7. Нажмите "Add"
-8. Найдите "Shelly Scripts Backup" и установите
+1. Убедитесь, что [HACS](https://hacs.xyz/) установлен в вашем Home Assistant
+2. В HACS перейдите в "Integrations"
+3. Нажмите на три точки в правом верхнем углу и выберите "Custom repositories"
+4. Добавьте URL этого репозитория: `https://github.com/yourusername/shelly_scripts_backup`
+5. Выберите категорию "Integration"
+6. Нажмите "Add"
+7. Найдите "Shelly Scripts Backup" в списке и нажмите "Download"
+8. Перезапустите Home Assistant
 
-### Ручная установка
+### Вариант 2: Ручная установка
 
 1. Скопируйте папку `shelly_scripts_backup` в `config/custom_components/`
 2. Перезапустите Home Assistant
@@ -174,3 +182,18 @@ MIT License
 ## Благодарности
 
 Спасибо сообществу Home Assistant и разработчикам Shelly за отличные продукты!
+
+---
+
+## Бейджи и ссылки
+
+[releases-shield]: https://img.shields.io/github/release/yourusername/shelly_scripts_backup.svg?style=for-the-badge
+[releases]: https://github.com/yourusername/shelly_scripts_backup/releases
+[commits-shield]: https://img.shields.io/github/commit-activity/y/yourusername/shelly_scripts_backup.svg?style=for-the-badge
+[commits]: https://github.com/yourusername/shelly_scripts_backup/commits/main
+[hacs-shield]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
+[hacs]: https://github.com/hacs/integration
+[license-shield]: https://img.shields.io/github/license/yourusername/shelly_scripts_backup.svg?style=for-the-badge
+[maintenance-shield]: https://img.shields.io/badge/maintainer-%40yourusername-blue.svg?style=for-the-badge
+[forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg?style=for-the-badge
+[forum]: https://community.home-assistant.io/
