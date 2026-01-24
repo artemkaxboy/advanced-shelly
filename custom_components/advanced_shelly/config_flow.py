@@ -55,17 +55,16 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
                     _LOGGER.error("Device is Gen%s, scripts require Gen2+", device_info.get("gen"))
                     raise UnsupportedDevice(f"Device is Gen{device_info.get('gen')}, scripts require Gen2+")
                 
-                device_name = device_info.get("name", data.get(CONF_NAME, DEFAULT_NAME))
                 device_id = device_info.get("id", "unknown")
                 device_model = device_info.get("model", "unknown")
                 
                 _LOGGER.info(
                     "Successfully validated Shelly device: %s (ID: %s, Model: %s)",
-                    device_name, device_id, device_model
+                    host, device_id, device_model
                 )
                 
                 return {
-                    "title": device_name,
+                    "title": host,
                     "device_id": device_id,
                     "model": device_model,
                 }
