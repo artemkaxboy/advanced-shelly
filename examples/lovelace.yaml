@@ -1,0 +1,163 @@
+# Пример карточки для Lovelace Dashboard
+
+# Простая кнопка для запуска бэкапа
+type: button
+name: Backup Shelly Scripts
+icon: mdi:content-save
+tap_action:
+  action: call-service
+  service: shelly_scripts_backup.backup_now
+
+---
+
+# Карточка с несколькими кнопками
+type: vertical-stack
+cards:
+  - type: markdown
+    content: |
+      ## Управление бэкапами Shelly
+  
+  - type: horizontal-stack
+    cards:
+      - type: button
+        name: Backup All
+        icon: mdi:backup-restore
+        tap_action:
+          action: call-service
+          service: shelly_scripts_backup.backup_now
+      
+      - type: button
+        name: Backup Device 1
+        icon: mdi:content-save
+        tap_action:
+          action: call-service
+          service: shelly_scripts_backup.backup_now
+          service_data:
+            device_id: shellyplus1pm-a8032ab12345
+
+---
+
+# Карточка с entities
+type: entities
+title: Shelly Scripts Backup
+entities:
+  - type: button
+    name: Create Backup Now
+    icon: mdi:backup-restore
+    tap_action:
+      action: call-service
+      service: shelly_scripts_backup.backup_now
+  
+  - type: button
+    name: Restore Script 1
+    icon: mdi:restore
+    tap_action:
+      action: call-service
+      service: shelly_scripts_backup.restore_script
+      service_data:
+        device_id: shellyplus1pm-a8032ab12345
+        script_id: 1
+
+---
+
+# Расширенная карточка с информацией
+type: vertical-stack
+cards:
+  - type: markdown
+    content: |
+      ## 📦 Shelly Scripts Backup Manager
+      
+      Последний бэкап: {{ now().strftime('%Y-%m-%d %H:%M') }}
+  
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+      - type: button
+        name: Full Backup
+        icon: mdi:database-export
+        tap_action:
+          action: call-service
+          service: shelly_scripts_backup.backup_now
+        hold_action:
+          action: more-info
+      
+      - type: button
+        name: Kitchen Shelly
+        icon: mdi:stove
+        tap_action:
+          action: call-service
+          service: shelly_scripts_backup.backup_now
+          service_data:
+            device_id: shellyplus1pm-kitchen
+      
+      - type: button
+        name: Bathroom Shelly
+        icon: mdi:shower
+        tap_action:
+          action: call-service
+          service: shelly_scripts_backup.backup_now
+          service_data:
+            device_id: shellyplus1pm-bathroom
+      
+      - type: button
+        name: Restore Last
+        icon: mdi:restore
+        tap_action:
+          action: call-service
+          service: shelly_scripts_backup.restore_script
+          service_data:
+            device_id: shellyplus1pm-kitchen
+            script_id: 1
+
+---
+
+# Карточка для Node-RED или автоматизаций
+# Создайте input_boolean в configuration.yaml:
+# input_boolean:
+#   shelly_backup_trigger:
+#     name: Trigger Shelly Backup
+#     icon: mdi:backup-restore
+
+type: entities
+title: Backup Controls
+entities:
+  - input_boolean.shelly_backup_trigger
+  - type: button
+    name: Manual Backup
+    icon: mdi:play
+    tap_action:
+      action: call-service
+      service: shelly_scripts_backup.backup_now
+
+---
+
+# Карточка с условиями (показывает время следующего бэкапа)
+type: markdown
+content: |
+  ### 🔄 Automatic Backup Schedule
+  
+  - **Interval**: Every 24 hours
+  - **Next backup**: {{ (now() + timedelta(hours=24)).strftime('%Y-%m-%d %H:%M') }}
+  - **Backup location**: `/config/shelly_backups/`
+  
+  [Run Backup Now](#)
+
+---
+
+# Интеграция с Custom Button Card (требуется HACS плагин)
+type: custom:button-card
+name: Shelly Backup
+icon: mdi:cloud-upload
+color: auto
+tap_action:
+  action: call-service
+  service: shelly_scripts_backup.backup_now
+styles:
+  card:
+    - height: 100px
+  name:
+    - font-size: 14px
+  icon:
+    - width: 50px
+show_state: false

@@ -1,0 +1,54 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Shelly Scripts Backup",
+        "description": "Configure Shelly device for automatic script backups",
+        "data": {
+          "host": "Device IP address or hostname",
+          "name": "Device name",
+          "backup_path": "Backup directory path",
+          "backup_interval": "Backup interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the device. Please check the IP address and ensure the device is online.",
+      "unsupported_device": "This device does not support scripts. Only Shelly Gen2+ devices are supported.",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  },
+  "services": {
+    "backup_now": {
+      "name": "Backup Now",
+      "description": "Manually trigger script backup for all devices or a specific device",
+      "fields": {
+        "device_id": {
+          "name": "Device ID",
+          "description": "ID of the device to backup (optional, if not specified all devices will be backed up)"
+        }
+      }
+    },
+    "restore_script": {
+      "name": "Restore Script",
+      "description": "Restore a script from backup to the device",
+      "fields": {
+        "device_id": {
+          "name": "Device ID",
+          "description": "ID of the device"
+        },
+        "script_id": {
+          "name": "Script ID",
+          "description": "ID of the script to restore"
+        },
+        "backup_path": {
+          "name": "Backup Path",
+          "description": "Path to the backup file (optional, will use latest backup if not specified)"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Shelly Scripts Backup",
+        "description": "Configure Shelly device for automatic script backups",
+        "data": {
+          "host": "Device IP address or hostname",
+          "name": "Device name",
+          "backup_path": "Backup directory path",
+          "backup_interval": "Backup interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the device",
+      "unsupported_device": "Device does not support scripts",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  }
+}

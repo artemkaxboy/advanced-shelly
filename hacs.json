@@ -1,0 +1,7 @@
+{
+  "name": "Shelly Scripts Backup",
+  "content_in_root": false,
+  "filename": "shelly_scripts_backup",
+  "render_readme": true,
+  "homeassistant": "2024.1.0"
+}

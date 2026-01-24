@@ -1,0 +1,91 @@
+# Примеры автоматизаций для Shelly Scripts Backup
+
+# Ежедневный бэкап в 2 часа ночи
+- alias: "Shelly Scripts - Daily Backup"
+  description: "Ежедневное резервное копирование скриптов Shelly"
+  trigger:
+    - platform: time
+      at: "02:00:00"
+  action:
+    - service: shelly_scripts_backup.backup_now
+    - service: notify.persistent_notification
+      data:
+        title: "Shelly Backup"
+        message: "Резервное копирование скриптов Shelly завершено"
+
+# Бэкап при перезапуске Home Assistant
+- alias: "Shelly Scripts - Backup on HA Restart"
+  description: "Создание бэкапа скриптов при перезапуске Home Assistant"
+  trigger:
+    - platform: homeassistant
+      event: start
+  action:
+    - delay: "00:01:00"  # Подождать минуту после старта
+    - service: shelly_scripts_backup.backup_now
+
+# Бэкап конкретного устройства
+- alias: "Shelly Scripts - Backup Specific Device"
+  description: "Резервное копирование скриптов конкретного устройства"
+  trigger:
+    - platform: state
+      entity_id: input_boolean.backup_shelly_trigger
+      to: "on"
+  action:
+    - service: shelly_scripts_backup.backup_now
+      data:
+        device_id: "shellyplus1pm-a8032ab12345"
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.backup_shelly_trigger
+
+# Уведомление в Telegram после бэкапа
+- alias: "Shelly Scripts - Telegram Notification"
+  description: "Отправка уведомления в Telegram после бэкапа"
+  trigger:
+    - platform: time
+      at: "03:00:00"
+  action:
+    - service: shelly_scripts_backup.backup_now
+    - service: notify.telegram
+      data:
+        message: "🔒 Резервное копирование скриптов Shelly выполнено успешно"
+
+# Еженедельный бэкап с архивацией
+- alias: "Shelly Scripts - Weekly Backup with Archive"
+  description: "Еженедельный бэкап с созданием архива"
+  trigger:
+    - platform: time
+      at: "01:00:00"
+  condition:
+    - condition: time
+      weekday:
+        - sun
+  action:
+    - service: shelly_scripts_backup.backup_now
+    - service: shell_command.archive_shelly_backups
+
+# Восстановление скрипта (пример ручного запуска)
+- alias: "Shelly Scripts - Restore Script Example"
+  description: "Пример восстановления скрипта"
+  trigger:
+    - platform: state
+      entity_id: input_boolean.restore_shelly_script
+      to: "on"
+  action:
+    - service: shelly_scripts_backup.restore_script
+      data:
+        device_id: "shellyplus1pm-a8032ab12345"
+        script_id: 1
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.restore_shelly_script
+    - service: notify.persistent_notification
+      data:
+        title: "Shelly Restore"
+        message: "Скрипт восстановлен из резервной копии"
+
+# Shell command для архивации (добавьте в configuration.yaml)
+# shell_command:
+#   archive_shelly_backups: >
+#     tar -czf /config/backups/shelly_scripts_$(date +%Y%m%d).tar.gz 
+#     -C /config shelly_backups

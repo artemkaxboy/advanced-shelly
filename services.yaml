@@ -1,0 +1,40 @@
+backup_now:
+  name: Backup Now
+  description: Manually trigger script backup for all devices or a specific device
+  fields:
+    device_id:
+      name: Device ID
+      description: ID of the device to backup (optional)
+      required: false
+      example: "shellyplus1pm-a8032ab12345"
+      selector:
+        text:
+
+restore_script:
+  name: Restore Script
+  description: Restore a script from backup to the device
+  fields:
+    device_id:
+      name: Device ID
+      description: ID of the device
+      required: true
+      example: "shellyplus1pm-a8032ab12345"
+      selector:
+        text:
+    script_id:
+      name: Script ID
+      description: ID of the script to restore
+      required: true
+      example: 1
+      selector:
+        number:
+          min: 1
+          max: 10
+          mode: box
+    backup_path:
+      name: Backup Path
+      description: Path to the backup file (optional, will use latest backup if not specified)
+      required: false
+      example: "/config/shelly_backups/shellyplus1pm-a8032ab12345/1_my_script.js"
+      selector:
+        text:
