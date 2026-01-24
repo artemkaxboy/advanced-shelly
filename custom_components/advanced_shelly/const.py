@@ -7,6 +7,8 @@ CONF_HOST = "host"
 CONF_NAME = "name"
 CONF_BACKUP_PATH = "backup_path"
 CONF_BACKUP_INTERVAL = "backup_interval"
+CONF_PASSWORD = "password"
+SHELLY_USERNAME = "admin"  # Always 'admin' for Shelly devices
 
 # Defaults
 DEFAULT_BACKUP_PATH = "/config/shelly_backups"

@@ -7,6 +7,7 @@
         "data": {
           "host": "Device IP address or hostname",
           "name": "Device name",
+          "password": "Password (optional)",
           "backup_path": "Backup directory path",
           "backup_interval": "Backup interval (seconds)"
         }
@@ -14,6 +15,7 @@
     },
     "error": {
       "cannot_connect": "Failed to connect to the device. Please check the IP address and ensure the device is online.",
+        "invalid_auth": "Invalid authentication. Please check the password and try again.",
       "unsupported_device": "This device does not support scripts. Only Shelly Gen2+ devices are supported.",
       "unknown": "Unexpected error occurred"
     },
