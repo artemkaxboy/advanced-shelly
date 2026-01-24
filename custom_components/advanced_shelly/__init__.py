@@ -9,7 +9,6 @@ from datetime import timedelta
 from pathlib import Path
 
 import aiohttp
-from aiohttp import DigestAuth
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -36,6 +35,7 @@ from .const import (
     SHELLY_SCRIPT_PUTCODE,
     SHELLY_DEVICE_INFO,
 )
+from .digest_auth import DigestAuth
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -171,13 +171,13 @@ class ShellyBackupCoordinator:
         """Initialize the coordinator."""
         self.hass = hass
         self.host = host
+        self.password = password
         self.backup_path = backup_path
         self._session: aiohttp.ClientSession | None = None
+        self._digest_auth: DigestAuth | None = None
 
-        # Prepare auth if password is provided
-        self._auth: DigestAuth | None = None
         if password:
-            self._auth = DigestAuth(SHELLY_USERNAME, password)
+            self._digest_auth = DigestAuth(SHELLY_USERNAME, password)
 
     @property
     def session(self) -> aiohttp.ClientSession:
@@ -186,19 +186,41 @@ class ShellyBackupCoordinator:
             self._session = aiohttp.ClientSession()
         return self._session
 
-    async def _make_request(self, endpoint: str, params: dict | None = None) -> dict:
+    async def _make_request(
+            self,
+            endpoint: str,
+            params: dict | None = None,
+            method: str = "GET"
+    ) -> dict:
         """Make a request to the Shelly device."""
         url = f"http://{self.host}{endpoint}"
 
         try:
-            async with self.session.get(
+            # First attempt
+            async with self.session.request(
+                    method,
                     url,
                     params=params,
-                    auth=self._auth,
                     timeout=aiohttp.ClientTimeout(total=30)
             ) as response:
+                # Handle 401 with digest auth
+                if response.status == 401 and self._digest_auth:
+                    auth_header = await self._digest_auth.handle_401(response, method, url)
+                    if auth_header:
+                        # Retry with auth
+                        async with self.session.request(
+                                method,
+                                url,
+                                params=params,
+                                headers={"Authorization": auth_header},
+                                timeout=aiohttp.ClientTimeout(total=30)
+                        ) as auth_response:
+                            auth_response.raise_for_status()
+                            return await auth_response.json()
+
                 response.raise_for_status()
                 return await response.json()
+
         except aiohttp.ClientError as err:
             _LOGGER.error("Error making request to %s: %s", url, err)
             raise
@@ -222,14 +244,29 @@ class ShellyBackupCoordinator:
         url = f"http://{self.host}{SHELLY_SCRIPT_PUTCODE}"
 
         try:
+            # First attempt
             async with self.session.post(
                     url,
                     json={"id": script_id, "code": code},
-                    auth=self._auth,
                     timeout=aiohttp.ClientTimeout(total=30),
             ) as response:
+                # Handle 401 with digest auth
+                if response.status == 401 and self._digest_auth:
+                    auth_header = await self._digest_auth.handle_401(response, "POST", url)
+                    if auth_header:
+                        # Retry with auth
+                        async with self.session.post(
+                                url,
+                                json={"id": script_id, "code": code},
+                                headers={"Authorization": auth_header},
+                                timeout=aiohttp.ClientTimeout(total=30),
+                        ) as auth_response:
+                            auth_response.raise_for_status()
+                            return await auth_response.json()
+
                 response.raise_for_status()
                 return await response.json()
+
         except aiohttp.ClientError as err:
             _LOGGER.error("Error uploading script: %s", err)
             raise

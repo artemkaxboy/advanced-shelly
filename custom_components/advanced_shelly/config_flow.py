@@ -5,7 +5,6 @@ import logging
 from typing import Any
 
 import aiohttp
-from aiohttp import DigestAuth
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -27,6 +26,7 @@ from .const import (
     SHELLY_USERNAME,
     SHELLY_DEVICE_INFO,
 )
+from .digest_auth import DigestAuth
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,40 +36,53 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     host = data[CONF_HOST]
     password = data.get(CONF_PASSWORD)
 
-    # Prepare auth if password is provided
-    auth = None
-    if password:
-        auth = DigestAuth(SHELLY_USERNAME, password)
-
     # Try to connect to the Shelly device
     async with aiohttp.ClientSession() as session:
         try:
             url = f"http://{host}{SHELLY_DEVICE_INFO}"
             _LOGGER.debug("Connecting to Shelly device at %s", url)
 
+            # First attempt without auth
             async with session.get(
                     url,
-                    auth=auth,
                     timeout=aiohttp.ClientTimeout(total=10)
             ) as response:
-                if response.status == 401:
-                    _LOGGER.error("Authentication failed for %s", url)
-                    raise InvalidAuth("Authentication required or credentials invalid")
+                # If 401 and we have password, try digest auth
+                if response.status == 401 and password:
+                    digest_auth = DigestAuth(SHELLY_USERNAME, password)
+                    auth_header = await digest_auth.handle_401(response, "GET", url)
 
-                if response.status != 200:
-                    _LOGGER.error("HTTP error %s when connecting to %s", response.status, url)
+                    if not auth_header:
+                        raise InvalidAuth("Failed to create digest auth")
+
+                    # Retry with authentication
+                    async with session.get(
+                            url,
+                            headers={"Authorization": auth_header},
+                            timeout=aiohttp.ClientTimeout(total=10)
+                    ) as auth_response:
+                        if auth_response.status == 401:
+                            raise InvalidAuth("Authentication failed")
+                        if auth_response.status != 200:
+                            raise CannotConnect(f"HTTP {auth_response.status}")
+                        device_info = await auth_response.json()
+
+                elif response.status == 401:
+                    raise InvalidAuth("Authentication required but no password provided")
+
+                elif response.status != 200:
                     raise CannotConnect(f"HTTP {response.status}")
 
-                device_info = await response.json()
+                else:
+                    device_info = await response.json()
+
                 _LOGGER.debug("Device info: %s", device_info)
 
                 # Check if device supports scripts (Gen2+ devices)
                 if "gen" not in device_info:
-                    _LOGGER.error("Device does not report generation")
                     raise UnsupportedDevice("Device does not report generation (might be Gen1)")
 
                 if device_info.get("gen") < 2:
-                    _LOGGER.error("Device is Gen%s, scripts require Gen2+", device_info.get("gen"))
                     raise UnsupportedDevice(f"Device is Gen{device_info.get('gen')}, scripts require Gen2+")
 
                 device_id = device_info.get("id", "unknown")
