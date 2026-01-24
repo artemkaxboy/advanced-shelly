@@ -1,6 +1,6 @@
-"""Constants for the Shelly Scripts Backup integration."""
+"""Constants for the Advanced Shelly integration."""
 
-DOMAIN = "shelly_scripts_backup"
+DOMAIN = "advanced_shelly"
 
 # Configuration
 CONF_HOST = "host"

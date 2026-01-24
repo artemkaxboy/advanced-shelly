@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Бэкап скриптов Shelly",
+        "title": "Advanced Shelly",
         "description": "Настройка устройства Shelly для автоматического резервного копирования скриптов",
         "data": {
           "host": "IP-адрес или имя хоста устройства",

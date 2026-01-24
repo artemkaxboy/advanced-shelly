@@ -10,7 +10,7 @@
 ## [1.0.0] - 2025-01-24
 
 ### Добавлено
-- Начальный релиз интеграции Shelly Scripts Backup
+- Начальный релиз интеграции Advanced Shelly
 - Автоматическое резервное копирование скриптов с устройств Shelly Gen2+
 - Настраиваемый интервал резервного копирования
 - Сохранение метаданных скриптов (имя, ID, статус)
@@ -35,5 +35,5 @@
 - Проверка соединения при настройке
 - Обработка ошибок подключения
 
-[Unreleased]: https://github.com/yourusername/shelly_scripts_backup/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/yourusername/shelly_scripts_backup/releases/tag/v1.0.0
+[Unreleased]: https://github.com/artemkaxboy/advanced-shelly/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/artemkaxboy/advanced-shelly/releases/tag/v1.0.0

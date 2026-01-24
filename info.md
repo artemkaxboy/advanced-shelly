@@ -1,4 +1,4 @@
-# Shelly Scripts Backup
+# Advanced Shelly
 
 Автоматическое резервное копирование скриптов с устройств Shelly Gen2+ для Home Assistant.
 
@@ -31,16 +31,17 @@
 
 1. В HACS перейдите в "Integrations"
 2. Нажмите на три точки в правом верхнем углу → "Custom repositories"
-3. Добавьте URL этого репозитория и выберите категорию "Integration"
-4. Найдите "Shelly Scripts Backup" в списке интеграций
-5. Нажмите "Download"
-6. Перезапустите Home Assistant
+3. Добавьте URL: `https://github.com/artemkaxboy/advanced-shelly`
+4. Выберите категорию "Integration"
+5. Найдите "Advanced Shelly" в списке интеграций
+6. Нажмите "Download"
+7. Перезапустите Home Assistant
 
 ### 2. Настройка интеграции
 
 1. Перейдите в Settings → Devices & Services
 2. Нажмите "+ Add Integration"
-3. Найдите "Shelly Scripts Backup"
+3. Найдите "Advanced Shelly"
 4. Введите данные:
    - **IP-адрес** устройства Shelly (например: 192.168.1.100)
    - **Название** устройства (необязательно)
@@ -67,14 +68,14 @@
 
 #### Создать бэкап вручную
 ```yaml
-service: shelly_scripts_backup.backup_now
+service: advanced_shelly.backup_now
 data:
   device_id: shellyplus1pm-a8032ab12345  # необязательно
 ```
 
 #### Восстановить скрипт
 ```yaml
-service: shelly_scripts_backup.restore_script
+service: advanced_shelly.restore_script
 data:
   device_id: shellyplus1pm-a8032ab12345
   script_id: 1
@@ -92,7 +93,7 @@ automation:
       - platform: time
         at: "02:00:00"
     action:
-      - service: shelly_scripts_backup.backup_now
+      - service: advanced_shelly.backup_now
 ```
 
 ### Кнопка на дашборде
@@ -103,21 +104,21 @@ name: Backup Shelly Scripts
 icon: mdi:backup-restore
 tap_action:
   action: call-service
-  service: shelly_scripts_backup.backup_now
+  service: advanced_shelly.backup_now
 ```
 
 ## Документация
 
-- [Полная документация на GitHub](https://github.com/yourusername/shelly_scripts_backup)
-- [Примеры автоматизаций](https://github.com/yourusername/shelly_scripts_backup/blob/main/examples/automations.yaml)
-- [Примеры Lovelace карточек](https://github.com/yourusername/shelly_scripts_backup/blob/main/examples/lovelace.yaml)
-- [Документация Shelly API](https://github.com/yourusername/shelly_scripts_backup/blob/main/docs/API.md)
+- [Полная документация на GitHub](https://github.com/artemkaxboy/advanced-shelly)
+- [Примеры автоматизаций](https://github.com/artemkaxboy/advanced-shelly/blob/main/examples/automations.yaml)
+- [Примеры Lovelace карточек](https://github.com/artemkaxboy/advanced-shelly/blob/main/examples/lovelace.yaml)
+- [Документация Shelly API](https://github.com/artemkaxboy/advanced-shelly/blob/main/docs/API.md)
 
 ## Помощь и поддержка
 
-- 🐛 [Сообщить о проблеме](https://github.com/yourusername/shelly_scripts_backup/issues)
-- 💬 [Обсуждения](https://github.com/yourusername/shelly_scripts_backup/discussions)
-- ⭐ [Поставить звезду на GitHub](https://github.com/yourusername/shelly_scripts_backup)
+- 🐛 [Сообщить о проблеме](https://github.com/artemkaxboy/advanced-shelly/issues)
+- 💬 [Обсуждения](https://github.com/artemkaxboy/advanced-shelly/discussions)
+- ⭐ [Поставить звезду на GitHub](https://github.com/artemkaxboy/advanced-shelly)
 
 ## Безопасность
 

@@ -1,4 +1,4 @@
-"""The Shelly Scripts Backup integration."""
+"""The Advanced Shelly integration."""
 from __future__ import annotations
 
 import asyncio

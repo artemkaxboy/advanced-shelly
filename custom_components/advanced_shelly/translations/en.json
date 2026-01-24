@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Shelly Scripts Backup",
+        "title": "Advanced Shelly",
         "description": "Configure Shelly device for automatic script backups",
         "data": {
           "host": "Device IP address or hostname",

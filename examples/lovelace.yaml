@@ -6,7 +6,7 @@ name: Backup Shelly Scripts
 icon: mdi:content-save
 tap_action:
   action: call-service
-  service: shelly_scripts_backup.backup_now
+  service: advanced_shelly.backup_now
 
 ---
 
@@ -24,14 +24,14 @@ cards:
         icon: mdi:backup-restore
         tap_action:
           action: call-service
-          service: shelly_scripts_backup.backup_now
+          service: advanced_shelly.backup_now
       
       - type: button
         name: Backup Device 1
         icon: mdi:content-save
         tap_action:
           action: call-service
-          service: shelly_scripts_backup.backup_now
+          service: advanced_shelly.backup_now
           service_data:
             device_id: shellyplus1pm-a8032ab12345
 
@@ -46,14 +46,14 @@ entities:
     icon: mdi:backup-restore
     tap_action:
       action: call-service
-      service: shelly_scripts_backup.backup_now
+      service: advanced_shelly.backup_now
   
   - type: button
     name: Restore Script 1
     icon: mdi:restore
     tap_action:
       action: call-service
-      service: shelly_scripts_backup.restore_script
+      service: advanced_shelly.restore_script
       service_data:
         device_id: shellyplus1pm-a8032ab12345
         script_id: 1
@@ -78,7 +78,7 @@ cards:
         icon: mdi:database-export
         tap_action:
           action: call-service
-          service: shelly_scripts_backup.backup_now
+          service: advanced_shelly.backup_now
         hold_action:
           action: more-info
       
@@ -87,7 +87,7 @@ cards:
         icon: mdi:stove
         tap_action:
           action: call-service
-          service: shelly_scripts_backup.backup_now
+          service: advanced_shelly.backup_now
           service_data:
             device_id: shellyplus1pm-kitchen
       
@@ -96,7 +96,7 @@ cards:
         icon: mdi:shower
         tap_action:
           action: call-service
-          service: shelly_scripts_backup.backup_now
+          service: advanced_shelly.backup_now
           service_data:
             device_id: shellyplus1pm-bathroom
       
@@ -105,7 +105,7 @@ cards:
         icon: mdi:restore
         tap_action:
           action: call-service
-          service: shelly_scripts_backup.restore_script
+          service: advanced_shelly.restore_script
           service_data:
             device_id: shellyplus1pm-kitchen
             script_id: 1
@@ -128,7 +128,7 @@ entities:
     icon: mdi:play
     tap_action:
       action: call-service
-      service: shelly_scripts_backup.backup_now
+      service: advanced_shelly.backup_now
 
 ---
 
@@ -152,7 +152,7 @@ icon: mdi:cloud-upload
 color: auto
 tap_action:
   action: call-service
-  service: shelly_scripts_backup.backup_now
+  service: advanced_shelly.backup_now
 styles:
   card:
     - height: 100px

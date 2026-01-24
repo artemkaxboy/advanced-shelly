@@ -1,4 +1,4 @@
-# Shelly Scripts Backup для Home Assistant
+# Advanced Shelly для Home Assistant
 
 [![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
@@ -26,7 +26,10 @@
 - Shelly Plus 1/1PM
 - Shelly Plus 2PM
 - Shelly Plus I4
-- Shelly Pro серии
+- Shelly Plus Plug S
+- Shelly Pro 1/1PM/2/2PM
+- Shelly Pro 3
+- Shelly Pro 4PM
 - И другие Gen2+ устройства
 
 **Важно:** Устройства Gen1 не поддерживаются, так как они не имеют функционала скриптов.
@@ -38,21 +41,21 @@
 1. Убедитесь, что [HACS](https://hacs.xyz/) установлен в вашем Home Assistant
 2. В HACS перейдите в "Integrations"
 3. Нажмите на три точки в правом верхнем углу и выберите "Custom repositories"
-4. Добавьте URL этого репозитория: `https://github.com/yourusername/shelly_scripts_backup`
+4. Добавьте URL этого репозитория: `https://github.com/artemkaxboy/advanced-shelly`
 5. Выберите категорию "Integration"
 6. Нажмите "Add"
-7. Найдите "Shelly Scripts Backup" в списке и нажмите "Download"
+7. Найдите "Advanced Shelly" в списке и нажмите "Download"
 8. Перезапустите Home Assistant
 
 ### Вариант 2: Ручная установка
 
-1. Скопируйте папку `shelly_scripts_backup` в `config/custom_components/`
+1. Скопируйте папку `custom_components/advanced_shelly` в `config/custom_components/`
 2. Перезапустите Home Assistant
 
 ## Настройка
 
 1. Перейдите в Settings → Devices & Services → Add Integration
-2. Найдите "Shelly Scripts Backup"
+2. Найдите "Advanced Shelly"
 3. Введите:
    - IP-адрес устройства Shelly
    - Название устройства (необязательно)
@@ -83,22 +86,22 @@
 
 ### Сервисы
 
-#### shelly_scripts_backup.backup_now
+#### advanced_shelly.backup_now
 
 Запускает резервное копирование вручную.
 
 ```yaml
-service: shelly_scripts_backup.backup_now
+service: advanced_shelly.backup_now
 data:
   device_id: shellyplus1pm-a8032ab12345  # необязательно, если не указано - бэкап всех устройств
 ```
 
-#### shelly_scripts_backup.restore_script
+#### advanced_shelly.restore_script
 
 Восстанавливает скрипт из резервной копии.
 
 ```yaml
-service: shelly_scripts_backup.restore_script
+service: advanced_shelly.restore_script
 data:
   device_id: shellyplus1pm-a8032ab12345
   script_id: 1
@@ -118,7 +121,7 @@ automation:
       - platform: state
         entity_id: input_boolean.script_modified  # ваш триггер
     action:
-      - service: shelly_scripts_backup.backup_now
+      - service: advanced_shelly.backup_now
 ```
 
 #### Уведомление после бэкапа
@@ -130,7 +133,7 @@ automation:
       - platform: time
         at: "02:00:00"
     action:
-      - service: shelly_scripts_backup.backup_now
+      - service: advanced_shelly.backup_now
       - service: notify.mobile_app
         data:
           message: "Shelly scripts backup completed"
@@ -144,7 +147,7 @@ automation:
 logger:
   default: info
   logs:
-    custom_components.shelly_scripts_backup: debug
+    custom_components.advanced_shelly: debug
 ```
 
 ## Устранение неполадок
@@ -187,13 +190,13 @@ MIT License
 
 ## Бейджи и ссылки
 
-[releases-shield]: https://img.shields.io/github/release/yourusername/shelly_scripts_backup.svg?style=for-the-badge
-[releases]: https://github.com/yourusername/shelly_scripts_backup/releases
-[commits-shield]: https://img.shields.io/github/commit-activity/y/yourusername/shelly_scripts_backup.svg?style=for-the-badge
-[commits]: https://github.com/yourusername/shelly_scripts_backup/commits/main
+[releases-shield]: https://img.shields.io/github/release/artemkaxboy/advanced-shelly.svg?style=for-the-badge
+[releases]: https://github.com/artemkaxboy/advanced-shelly/releases
+[commits-shield]: https://img.shields.io/github/commit-activity/y/artemkaxboy/advanced-shelly.svg?style=for-the-badge
+[commits]: https://github.com/artemkaxboy/advanced-shelly/commits/main
 [hacs-shield]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [hacs]: https://github.com/hacs/integration
-[license-shield]: https://img.shields.io/github/license/yourusername/shelly_scripts_backup.svg?style=for-the-badge
-[maintenance-shield]: https://img.shields.io/badge/maintainer-%40yourusername-blue.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/artemkaxboy/advanced-shelly.svg?style=for-the-badge
+[maintenance-shield]: https://img.shields.io/badge/maintainer-%40artemkaxboy-blue.svg?style=for-the-badge
 [forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg?style=for-the-badge
 [forum]: https://community.home-assistant.io/

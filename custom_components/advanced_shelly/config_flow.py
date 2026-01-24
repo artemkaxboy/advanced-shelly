@@ -1,4 +1,4 @@
-"""Config flow for Shelly Scripts Backup integration."""
+"""Config flow for Advanced Shelly integration."""
 from __future__ import annotations
 
 import logging

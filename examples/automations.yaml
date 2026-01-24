@@ -7,7 +7,7 @@
     - platform: time
       at: "02:00:00"
   action:
-    - service: shelly_scripts_backup.backup_now
+    - service: advanced_shelly.backup_now
     - service: notify.persistent_notification
       data:
         title: "Shelly Backup"
@@ -21,7 +21,7 @@
       event: start
   action:
     - delay: "00:01:00"  # Подождать минуту после старта
-    - service: shelly_scripts_backup.backup_now
+    - service: advanced_shelly.backup_now
 
 # Бэкап конкретного устройства
 - alias: "Shelly Scripts - Backup Specific Device"
@@ -31,7 +31,7 @@
       entity_id: input_boolean.backup_shelly_trigger
       to: "on"
   action:
-    - service: shelly_scripts_backup.backup_now
+    - service: advanced_shelly.backup_now
       data:
         device_id: "shellyplus1pm-a8032ab12345"
     - service: input_boolean.turn_off
@@ -45,7 +45,7 @@
     - platform: time
       at: "03:00:00"
   action:
-    - service: shelly_scripts_backup.backup_now
+    - service: advanced_shelly.backup_now
     - service: notify.telegram
       data:
         message: "🔒 Резервное копирование скриптов Shelly выполнено успешно"
@@ -61,7 +61,7 @@
       weekday:
         - sun
   action:
-    - service: shelly_scripts_backup.backup_now
+    - service: advanced_shelly.backup_now
     - service: shell_command.archive_shelly_backups
 
 # Восстановление скрипта (пример ручного запуска)
@@ -72,7 +72,7 @@
       entity_id: input_boolean.restore_shelly_script
       to: "on"
   action:
-    - service: shelly_scripts_backup.restore_script
+    - service: advanced_shelly.restore_script
       data:
         device_id: "shellyplus1pm-a8032ab12345"
         script_id: 1
