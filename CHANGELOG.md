@@ -7,6 +7,15 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2025-01-24
+
+### Fixed
+- Исправлена ошибка `KeyError: 'title'` при добавлении устройства через UI
+- Улучшена обработка ошибок в config flow
+- Добавлено подробное логирование для упрощения отладки
+- Улучшены сообщения об ошибках при подключении к устройству
+- Добавлена обработка различных типов ошибок парсинга ответа устройства
+
 ## [1.0.0] - 2025-01-24
 
 ### Добавлено
@@ -35,5 +44,6 @@
 - Проверка соединения при настройке
 - Обработка ошибок подключения
 
-[Unreleased]: https://github.com/artemkaxboy/advanced-shelly/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/artemkaxboy/advanced-shelly/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/artemkaxboy/advanced-shelly/releases/tag/v1.0.1
 [1.0.0]: https://github.com/artemkaxboy/advanced-shelly/releases/tag/v1.0.0

@@ -36,31 +36,50 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     async with aiohttp.ClientSession() as session:
         try:
             url = f"http://{host}{SHELLY_DEVICE_INFO}"
+            _LOGGER.debug("Connecting to Shelly device at %s", url)
+            
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
                 if response.status != 200:
+                    _LOGGER.error("HTTP error %s when connecting to %s", response.status, url)
                     raise CannotConnect(f"HTTP {response.status}")
                 
                 device_info = await response.json()
+                _LOGGER.debug("Device info: %s", device_info)
                 
                 # Check if device supports scripts (Gen2+ devices)
-                if "gen" not in device_info or device_info.get("gen") < 2:
-                    raise UnsupportedDevice("Device does not support scripts (Gen1 or unknown)")
+                if "gen" not in device_info:
+                    _LOGGER.error("Device does not report generation")
+                    raise UnsupportedDevice("Device does not report generation (might be Gen1)")
+                
+                if device_info.get("gen") < 2:
+                    _LOGGER.error("Device is Gen%s, scripts require Gen2+", device_info.get("gen"))
+                    raise UnsupportedDevice(f"Device is Gen{device_info.get('gen')}, scripts require Gen2+")
+                
+                device_name = device_info.get("name", data.get(CONF_NAME, DEFAULT_NAME))
+                device_id = device_info.get("id", "unknown")
+                device_model = device_info.get("model", "unknown")
+                
+                _LOGGER.info(
+                    "Successfully validated Shelly device: %s (ID: %s, Model: %s)",
+                    device_name, device_id, device_model
+                )
                 
                 return {
-                    "title": device_info.get("name", data.get(CONF_NAME, DEFAULT_NAME)),
-                    "device_id": device_info.get("id", "unknown"),
-                    "model": device_info.get("model", "unknown"),
+                    "title": device_name,
+                    "device_id": device_id,
+                    "model": device_model,
                 }
+                
         except aiohttp.ClientError as err:
             _LOGGER.error("Error connecting to Shelly device: %s", err)
-            raise CannotConnect(f"Connection error: {err}")
-        except Exception as err:
-            _LOGGER.exception("Unexpected error")
-            raise CannotConnect(f"Unexpected error: {err}")
+            raise CannotConnect(f"Connection error: {err}") from err
+        except (KeyError, ValueError, TypeError) as err:
+            _LOGGER.error("Error parsing device response: %s", err)
+            raise CannotConnect(f"Invalid device response: {err}") from err
 
 
-class ShellyScriptsBackupConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Shelly Scripts Backup."""
+class AdvancedShellyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Advanced Shelly."""
 
     VERSION = 1
 
