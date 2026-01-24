@@ -9,6 +9,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import aiohttp
+from aiohttp import DigestAuth
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -19,6 +20,7 @@ import voluptuous as vol
 from .const import (
     DOMAIN,
     CONF_HOST,
+    CONF_PASSWORD,
     CONF_BACKUP_PATH,
     CONF_BACKUP_INTERVAL,
     DEFAULT_BACKUP_PATH,
@@ -28,6 +30,7 @@ from .const import (
     ATTR_DEVICE_ID,
     ATTR_SCRIPT_ID,
     ATTR_BACKUP_PATH,
+    SHELLY_USERNAME,
     SHELLY_SCRIPT_LIST,
     SHELLY_SCRIPT_GETCODE,
     SHELLY_SCRIPT_PUTCODE,
@@ -40,6 +43,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Shelly Scripts Backup from a config entry."""
     host = entry.data[CONF_HOST]
+    password = entry.data.get(CONF_PASSWORD)
     backup_path = entry.data.get(CONF_BACKUP_PATH, DEFAULT_BACKUP_PATH)
     backup_interval = entry.data.get(CONF_BACKUP_INTERVAL, DEFAULT_BACKUP_INTERVAL)
 
@@ -47,8 +51,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     Path(backup_path).mkdir(parents=True, exist_ok=True)
 
     # Initialize the coordinator
-    coordinator = ShellyBackupCoordinator(hass, host, backup_path)
-    
+    coordinator = ShellyBackupCoordinator(hass, host, password, backup_path)
+
     # Test connection
     try:
         await coordinator.get_device_info()
@@ -85,7 +89,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if cancel_interval:
         cancel_interval()
 
-    hass.data[DOMAIN].pop(entry.entry_id)
+    # Close coordinator session
+    coordinator = hass.data[DOMAIN].pop(entry.entry_id, None)
+    if coordinator:
+        await coordinator.close()
 
     return True
 
@@ -96,7 +103,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     async def handle_backup_now(call: ServiceCall) -> None:
         """Handle manual backup service call."""
         device_id = call.data.get(ATTR_DEVICE_ID)
-        
+
         if device_id:
             # Backup specific device
             for entry_id, coordinator in hass.data[DOMAIN].items():
@@ -124,7 +131,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 if info.get("id") == device_id:
                     await coordinator.restore_script(script_id, backup_path)
                     return
-        
+
         _LOGGER.error("Device with ID %s not found", device_id)
 
     # Register services only once
@@ -154,12 +161,23 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 class ShellyBackupCoordinator:
     """Class to manage Shelly script backups."""
 
-    def __init__(self, hass: HomeAssistant, host: str, backup_path: str) -> None:
+    def __init__(
+            self,
+            hass: HomeAssistant,
+            host: str,
+            password: str | None,
+            backup_path: str
+    ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
         self.host = host
         self.backup_path = backup_path
         self._session: aiohttp.ClientSession | None = None
+
+        # Prepare auth if password is provided
+        self._auth: DigestAuth | None = None
+        if password:
+            self._auth = DigestAuth(SHELLY_USERNAME, password)
 
     @property
     def session(self) -> aiohttp.ClientSession:
@@ -171,10 +189,13 @@ class ShellyBackupCoordinator:
     async def _make_request(self, endpoint: str, params: dict | None = None) -> dict:
         """Make a request to the Shelly device."""
         url = f"http://{self.host}{endpoint}"
-        
+
         try:
             async with self.session.get(
-                url, params=params, timeout=aiohttp.ClientTimeout(total=30)
+                    url,
+                    params=params,
+                    auth=self._auth,
+                    timeout=aiohttp.ClientTimeout(total=30)
             ) as response:
                 response.raise_for_status()
                 return await response.json()
@@ -199,12 +220,13 @@ class ShellyBackupCoordinator:
     async def put_script_code(self, script_id: int, code: str) -> dict:
         """Upload script code to the device."""
         url = f"http://{self.host}{SHELLY_SCRIPT_PUTCODE}"
-        
+
         try:
             async with self.session.post(
-                url,
-                json={"id": script_id, "code": code},
-                timeout=aiohttp.ClientTimeout(total=30),
+                    url,
+                    json={"id": script_id, "code": code},
+                    auth=self._auth,
+                    timeout=aiohttp.ClientTimeout(total=30),
             ) as response:
                 response.raise_for_status()
                 return await response.json()
@@ -218,11 +240,11 @@ class ShellyBackupCoordinator:
             device_info = await self.get_device_info()
             device_id = device_info.get("id", "unknown")
             device_name = device_info.get("name", "unknown")
-            
+
             _LOGGER.info("Starting backup for device %s (%s)", device_name, device_id)
 
             scripts = await self.get_scripts_list()
-            
+
             if not scripts:
                 _LOGGER.info("No scripts found on device %s", device_id)
                 return
@@ -235,17 +257,17 @@ class ShellyBackupCoordinator:
             for script in scripts:
                 script_id = script.get("id")
                 script_name = script.get("name", f"script_{script_id}")
-                
+
                 _LOGGER.debug("Backing up script %s (ID: %s)", script_name, script_id)
-                
+
                 try:
                     code = await self.get_script_code(script_id)
-                    
+
                     # Save script code
                     script_file = device_backup_path / f"{script_id}_{script_name}.js"
                     with open(script_file, "w", encoding="utf-8") as f:
                         f.write(code)
-                    
+
                     # Save script metadata
                     metadata = {
                         "id": script_id,
@@ -254,11 +276,11 @@ class ShellyBackupCoordinator:
                         "device_id": device_id,
                         "device_name": device_name,
                     }
-                    
+
                     metadata_file = device_backup_path / f"{script_id}_{script_name}.json"
                     with open(metadata_file, "w", encoding="utf-8") as f:
                         json.dump(metadata, f, indent=2)
-                    
+
                     _LOGGER.info(
                         "Backed up script %s (ID: %s) to %s",
                         script_name,
@@ -286,11 +308,11 @@ class ShellyBackupCoordinator:
                 # Find the script in the default backup location
                 device_backup_path = Path(self.backup_path) / device_id
                 script_files = list(device_backup_path.glob(f"{script_id}_*.js"))
-                
+
                 if not script_files:
                     _LOGGER.error("No backup found for script ID %s", script_id)
                     return
-                
+
                 script_file = script_files[0]
 
             # Read script code

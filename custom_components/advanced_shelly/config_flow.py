@@ -5,7 +5,7 @@ import logging
 from typing import Any
 
 import aiohttp
-from aiohttp import BasicAuth
+from aiohttp import DigestAuth
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -39,7 +39,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     # Prepare auth if password is provided
     auth = None
     if password:
-        auth = BasicAuth(SHELLY_USERNAME, password)
+        auth = DigestAuth(SHELLY_USERNAME, password)
 
     # Try to connect to the Shelly device
     async with aiohttp.ClientSession() as session:
