@@ -6,16 +6,16 @@ from typing import Any
 
 import aiohttp
 import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import selector
 
+from .shelly_client import ShellyClient
 from .const import (
     DOMAIN,
-    CONF_HOST,
+    CONF_URL,
     CONF_NAME,
     CONF_PASSWORD,
     CONF_BACKUP_PATH,
@@ -24,103 +24,49 @@ from .const import (
     DEFAULT_BACKUP_INTERVAL,
     DEFAULT_NAME,
     SHELLY_USERNAME,
-    SHELLY_DEVICE_INFO,
 )
-from .digest_auth import DigestAuth
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
-    host = data[CONF_HOST]
-    password = data.get(CONF_PASSWORD)
+    url = data[CONF_URL]
+    password = data.get(CONF_PASSWORD, "")
 
-    # Try to connect to the Shelly device
-    async with aiohttp.ClientSession() as session:
-        try:
-            url = f"http://{host}{SHELLY_DEVICE_INFO}"
-            _LOGGER.debug("Connecting to Shelly device at %s", url)
+    try:
+        _LOGGER.debug("Connecting to Shelly device at %s", url)
+        async with ShellyClient(url, SHELLY_USERNAME, password) as client:
 
-            device_info = None
-            digest_auth = None
+            _LOGGER.debug("Getting device info")
+            device_info = await client.get_device_info()
+            _LOGGER.debug("Device info: %s", device_info)
 
-            if password:
-                digest_auth = DigestAuth(SHELLY_USERNAME, password)
+            # Check if device supports scripts (Gen2+ devices)
+            if "gen" not in device_info:
+                raise UnsupportedDevice("Device does not report generation (might be Gen1)")
 
-            # First attempt without auth (or with cached auth if available)
-            headers = {}
-            if digest_auth and digest_auth.last_challenge:
-                auth_header = digest_auth.get_auth_header("GET", url)
-                if auth_header:
-                    headers["Authorization"] = auth_header
+            if device_info.get("gen") < 2:
+                raise UnsupportedDevice(f"Device is Gen{device_info.get('gen')}, scripts require Gen2+")
 
-            async with session.get(
-                    url,
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=10)
-            ) as response:
-                # If 401, need authentication
-                if response.status == 401:
-                    if not password:
-                        raise InvalidAuth("Authentication required but no password provided")
+            device_id = device_info.get("id", "unknown")
+            device_model = device_info.get("model", "unknown")
+            _LOGGER.info(f"Successfully validated Shelly device: {url} (ID: {device_id}, Model: {device_model})")
 
-                    # Parse the challenge from 401 response
-                    if not digest_auth.parse_and_save_challenge(response):
-                        raise InvalidAuth("Failed to parse authentication challenge")
+            # Test authentication by fetching status
+            _ = await client.get_status()
+            return {
+                "title": url,
+                "device_id": device_id,
+                "model": device_model,
+            }
 
-                    # Get auth header with the challenge
-                    auth_header = digest_auth.get_auth_header("GET", url)
-                    if not auth_header:
-                        raise InvalidAuth("Failed to create digest auth header")
-
-                    # Retry with authentication
-                    async with session.get(
-                            url,
-                            headers={"Authorization": auth_header},
-                            timeout=aiohttp.ClientTimeout(total=10)
-                    ) as auth_response:
-                        if auth_response.status == 401:
-                            raise InvalidAuth("Invalid username or password")
-                        if auth_response.status != 200:
-                            raise CannotConnect(f"HTTP {auth_response.status}")
-                        device_info = await auth_response.json()
-
-                elif response.status != 200:
-                    raise CannotConnect(f"HTTP {response.status}")
-
-                else:
-                    device_info = await response.json()
-
-                _LOGGER.debug("Device info: %s", device_info)
-
-                # Check if device supports scripts (Gen2+ devices)
-                if "gen" not in device_info:
-                    raise UnsupportedDevice("Device does not report generation (might be Gen1)")
-
-                if device_info.get("gen") < 2:
-                    raise UnsupportedDevice(f"Device is Gen{device_info.get('gen')}, scripts require Gen2+")
-
-                device_id = device_info.get("id", "unknown")
-                device_model = device_info.get("model", "unknown")
-
-                _LOGGER.info(
-                    "Successfully validated Shelly device: %s (ID: %s, Model: %s)",
-                    host, device_id, device_model
-                )
-
-                return {
-                    "title": host,
-                    "device_id": device_id,
-                    "model": device_model,
-                }
-
-        except aiohttp.ClientError as err:
-            _LOGGER.error("Error connecting to Shelly device: %s", err)
-            raise CannotConnect(f"Connection error: {err}") from err
-        except (KeyError, ValueError, TypeError) as err:
-            _LOGGER.error("Error parsing device response: %s", err)
-            raise CannotConnect(f"Invalid device response: {err}") from err
+    except aiohttp.ClientError as err:
+        _LOGGER.error("Error connecting to Shelly device: %s", err)
+        raise CannotConnect(f"Connection error: {err}") from err
+    except (KeyError, ValueError, TypeError) as err:
+        _LOGGER.error("Error parsing device response: %s", err)
+        raise CannotConnect(f"Invalid device response: {err}") from err
 
 
 class AdvancedShellyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -158,7 +104,7 @@ class AdvancedShellyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         data_schema = vol.Schema(
             {
-                vol.Required(CONF_HOST): str,
+                vol.Required(CONF_URL): str,
                 vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
                 vol.Optional(CONF_PASSWORD): selector.TextSelector(
                     selector.TextSelectorConfig(

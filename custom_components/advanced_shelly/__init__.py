@@ -1,24 +1,20 @@
 """The Advanced Shelly integration."""
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
-import os
 from datetime import timedelta
 from pathlib import Path
 
-import aiohttp
-
+import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.exceptions import ConfigEntryNotReady
-import voluptuous as vol
+from homeassistant.helpers.event import async_track_time_interval
 
 from .const import (
     DOMAIN,
-    CONF_HOST,
+    CONF_URL,
     CONF_PASSWORD,
     CONF_BACKUP_PATH,
     CONF_BACKUP_INTERVAL,
@@ -29,20 +25,15 @@ from .const import (
     ATTR_DEVICE_ID,
     ATTR_SCRIPT_ID,
     ATTR_BACKUP_PATH,
-    SHELLY_USERNAME,
-    SHELLY_SCRIPT_LIST,
-    SHELLY_SCRIPT_GETCODE,
-    SHELLY_SCRIPT_PUTCODE,
-    SHELLY_DEVICE_INFO,
 )
-from .digest_auth import DigestAuth
+from .shelly_client import ShellyClient
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Shelly Scripts Backup from a config entry."""
-    host = entry.data[CONF_HOST]
+    url = entry.data[CONF_URL]
     password = entry.data.get(CONF_PASSWORD)
     backup_path = entry.data.get(CONF_BACKUP_PATH, DEFAULT_BACKUP_PATH)
     backup_interval = entry.data.get(CONF_BACKUP_INTERVAL, DEFAULT_BACKUP_INTERVAL)
@@ -51,35 +42,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     Path(backup_path).mkdir(parents=True, exist_ok=True)
 
     # Initialize the coordinator
-    coordinator = ShellyBackupCoordinator(hass, host, password, backup_path)
+    async with ShellyClient(url, password) as client:
+        coordinator = ShellyBackupCoordinator(hass, client, backup_path)
 
-    # Test connection
-    try:
-        await coordinator.get_device_info()
-    except Exception as err:
-        _LOGGER.error("Failed to connect to Shelly device: %s", err)
-        raise ConfigEntryNotReady from err
+        # Test connection
+        try:
+            await coordinator.client.get_device_info()
+        except Exception as err:
+            _LOGGER.error(f"Failed to connect to Shelly device: {err}")
+            raise ConfigEntryNotReady from err
 
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = coordinator
+        hass.data.setdefault(DOMAIN, {})
+        hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    # Schedule periodic backups
-    async def periodic_backup(now):
-        """Perform periodic backup."""
+        # Schedule periodic backups
+        async def periodic_backup(now):
+            """Perform periodic backup."""
+            await coordinator.backup_scripts()
+
+        cancel_interval = async_track_time_interval(
+            hass, periodic_backup, timedelta(seconds=backup_interval)
+        )
+        hass.data[DOMAIN][f"{entry.entry_id}_cancel"] = cancel_interval
+
+        # Perform initial backup
         await coordinator.backup_scripts()
 
-    cancel_interval = async_track_time_interval(
-        hass, periodic_backup, timedelta(seconds=backup_interval)
-    )
-    hass.data[DOMAIN][f"{entry.entry_id}_cancel"] = cancel_interval
+        # Register services
+        await async_setup_services(hass)
 
-    # Perform initial backup
-    await coordinator.backup_scripts()
-
-    # Register services
-    await async_setup_services(hass)
-
-    return True
+        return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -88,11 +80,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     cancel_interval = hass.data[DOMAIN].pop(f"{entry.entry_id}_cancel", None)
     if cancel_interval:
         cancel_interval()
-
-    # Close coordinator session
-    coordinator = hass.data[DOMAIN].pop(entry.entry_id, None)
-    if coordinator:
-        await coordinator.close()
 
     return True
 
@@ -108,7 +95,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             # Backup specific device
             for entry_id, coordinator in hass.data[DOMAIN].items():
                 if isinstance(coordinator, ShellyBackupCoordinator):
-                    info = await coordinator.get_device_info()
+                    info = await coordinator.client.get_device_info()
                     if info.get("id") == device_id:
                         await coordinator.backup_scripts()
                         return
@@ -127,12 +114,12 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         for entry_id, coordinator in hass.data[DOMAIN].items():
             if isinstance(coordinator, ShellyBackupCoordinator):
-                info = await coordinator.get_device_info()
+                info = await coordinator.client.get_device_info()
                 if info.get("id") == device_id:
                     await coordinator.restore_script(script_id, backup_path)
                     return
 
-        _LOGGER.error("Device with ID %s not found", device_id)
+        _LOGGER.error(f"Device with ID {device_id} not found")
 
     # Register services only once
     if not hass.services.has_service(DOMAIN, SERVICE_BACKUP_NOW):
@@ -164,127 +151,28 @@ class ShellyBackupCoordinator:
     def __init__(
             self,
             hass: HomeAssistant,
-            host: str,
-            password: str | None,
+            client: ShellyClient,
             backup_path: str
     ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
-        self.host = host
-        self.password = password
+        self.client = client
         self.backup_path = backup_path
-        self._session: aiohttp.ClientSession | None = None
-        self._digest_auth: DigestAuth | None = None
-
-        if password:
-            self._digest_auth = DigestAuth(SHELLY_USERNAME, password)
-
-    @property
-    def session(self) -> aiohttp.ClientSession:
-        """Get or create aiohttp session."""
-        if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
-        return self._session
-
-    async def _make_request(
-            self,
-            endpoint: str,
-            params: dict | None = None,
-            method: str = "GET",
-            json_data: dict | None = None
-    ) -> dict:
-        """Make a request to the Shelly device with digest auth support."""
-        url = f"http://{self.host}{endpoint}"
-        headers = {}
-
-        # Add auth header if we have digest auth with a saved challenge
-        if self._digest_auth and self._digest_auth.last_challenge:
-            auth_header = self._digest_auth.get_auth_header(method, url)
-            if auth_header:
-                headers["Authorization"] = auth_header
-
-        try:
-            # Make request
-            async with self.session.request(
-                    method,
-                    url,
-                    params=params,
-                    json=json_data,
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=30)
-            ) as response:
-                # Handle 401 - need to get challenge and retry
-                if response.status == 401:
-                    if self._digest_auth:
-                        # Parse the challenge
-                        if self._digest_auth.parse_and_save_challenge(response):
-                            # Get new auth header with the challenge
-                            auth_header = self._digest_auth.get_auth_header(method, url)
-                            if auth_header:
-                                # Retry with authentication
-                                async with self.session.request(
-                                        method,
-                                        url,
-                                        params=params,
-                                        json=json_data,
-                                        headers={"Authorization": auth_header},
-                                        timeout=aiohttp.ClientTimeout(total=30)
-                                ) as auth_response:
-                                    auth_response.raise_for_status()
-                                    return await auth_response.json()
-
-                    # If we get here, auth failed or wasn't configured
-                    _LOGGER.error("Authentication failed for %s", url)
-                    raise aiohttp.ClientResponseError(
-                        request_info=response.request_info,
-                        history=response.history,
-                        status=response.status,
-                        message="Authentication required",
-                        headers=response.headers
-                    )
-
-                response.raise_for_status()
-                return await response.json()
-
-        except aiohttp.ClientError as err:
-            _LOGGER.error("Error making request to %s: %s", url, err)
-            raise
-
-    async def get_device_info(self) -> dict:
-        """Get device information."""
-        return await self._make_request(SHELLY_DEVICE_INFO)
-
-    async def get_scripts_list(self) -> list[dict]:
-        """Get list of scripts from the device."""
-        response = await self._make_request(SHELLY_SCRIPT_LIST)
-        return response.get("scripts", [])
-
-    async def get_script_code(self, script_id: int) -> str:
-        """Get script code by ID."""
-        response = await self._make_request(SHELLY_SCRIPT_GETCODE, {"id": script_id})
-        return response.get("data", "")
-
-    async def put_script_code(self, script_id: int, code: str) -> dict:
-        """Upload script code to the device."""
-        return await self._make_request(
-            SHELLY_SCRIPT_PUTCODE,
-            method="POST",
-            json_data={"id": script_id, "code": code}
-        )
 
     async def backup_scripts(self) -> None:
         """Backup all scripts from the device."""
         try:
-            device_info = await self.get_device_info()
+            device_info = await self.client.get_device_info()
             device_id = device_info.get("id", "unknown")
             device_name = device_info.get("name", "unknown")
 
-            _LOGGER.info("Starting backup for device %s (%s)", device_name, device_id)
+            _LOGGER.info(f"Starting backup for device {device_name} ({device_id})")
 
-            scripts = await self.get_scripts_list()
+            scripts_response = await self.client.get_script_list()
+            scripts = scripts_response.get("scripts", [])
 
             if not scripts:
-                _LOGGER.info("No scripts found on device %s", device_id)
+                _LOGGER.info(f"No scripts found on device {device_id}")
                 return
 
             # Create device-specific backup directory
@@ -296,10 +184,11 @@ class ShellyBackupCoordinator:
                 script_id = script.get("id")
                 script_name = script.get("name", f"script_{script_id}")
 
-                _LOGGER.debug("Backing up script %s (ID: %s)", script_name, script_id)
+                _LOGGER.debug(f"Backing up script {script_name} (ID: {script_id})")
 
                 try:
-                    code = await self.get_script_code(script_id)
+                    code_response = await self.client.get_script_code(script_id)
+                    code = code_response.get("data", "")
 
                     # Save script code
                     script_file = device_backup_path / f"{script_id}_{script_name}.js"
@@ -319,25 +208,20 @@ class ShellyBackupCoordinator:
                     with open(metadata_file, "w", encoding="utf-8") as f:
                         json.dump(metadata, f, indent=2)
 
-                    _LOGGER.info(
-                        "Backed up script %s (ID: %s) to %s",
-                        script_name,
-                        script_id,
-                        script_file,
-                    )
+                    _LOGGER.info(f"Backed up script {script_name} (ID: {script_id}) to {script_file}")
                 except Exception as err:
-                    _LOGGER.error("Error backing up script %s: %s", script_name, err)
+                    _LOGGER.error(f"Error backing up script {script_name}: {err}")
 
-            _LOGGER.info("Backup completed for device %s", device_id)
+            _LOGGER.info(f"Backup completed for device {device_id}")
 
         except Exception as err:
-            _LOGGER.error("Error during backup: %s", err)
+            _LOGGER.error(f"Error during backup: {err}")
             raise
 
     async def restore_script(self, script_id: int, backup_path: str | None = None) -> None:
         """Restore a script from backup."""
         try:
-            device_info = await self.get_device_info()
+            device_info = await self.client.get_device_info()
             device_id = device_info.get("id", "unknown")
 
             if backup_path:
@@ -348,7 +232,7 @@ class ShellyBackupCoordinator:
                 script_files = list(device_backup_path.glob(f"{script_id}_*.js"))
 
                 if not script_files:
-                    _LOGGER.error("No backup found for script ID %s", script_id)
+                    _LOGGER.error(f"No backup found for script ID {script_id}")
                     return
 
                 script_file = script_files[0]
@@ -358,15 +242,10 @@ class ShellyBackupCoordinator:
                 code = f.read()
 
             # Upload to device
-            _LOGGER.info("Restoring script ID %s from %s", script_id, script_file)
-            await self.put_script_code(script_id, code)
-            _LOGGER.info("Script ID %s restored successfully", script_id)
+            _LOGGER.info(f"Restoring script ID {script_id} from {script_file}")
+            await self.client.put_script_code(script_id, code)
+            _LOGGER.info(f"Script ID {script_id} restored successfully")
 
         except Exception as err:
-            _LOGGER.error("Error restoring script: %s", err)
+            _LOGGER.error(f"Error restoring script: {err}")
             raise
-
-    async def close(self) -> None:
-        """Close the session."""
-        if self._session and not self._session.closed:
-            await self._session.close()

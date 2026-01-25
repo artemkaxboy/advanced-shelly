@@ -4,6 +4,7 @@ DOMAIN = "advanced_shelly"
 
 # Configuration
 CONF_HOST = "host"
+CONF_URL = "url"
 CONF_NAME = "name"
 CONF_BACKUP_PATH = "backup_path"
 CONF_BACKUP_INTERVAL = "backup_interval"
@@ -22,11 +23,4 @@ SERVICE_RESTORE_SCRIPT = "restore_script"
 # Attributes
 ATTR_DEVICE_ID = "device_id"
 ATTR_SCRIPT_ID = "script_id"
-ATTR_SCRIPT_NAME = "script_name"
 ATTR_BACKUP_PATH = "backup_path"
-
-# API endpoints
-SHELLY_SCRIPT_LIST = "/rpc/Script.List"
-SHELLY_SCRIPT_GETCODE = "/rpc/Script.GetCode"
-SHELLY_SCRIPT_PUTCODE = "/rpc/Script.PutCode"
-SHELLY_DEVICE_INFO = "/rpc/Shelly.GetDeviceInfo"
