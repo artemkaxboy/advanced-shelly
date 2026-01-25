@@ -190,33 +190,58 @@ class ShellyBackupCoordinator:
             self,
             endpoint: str,
             params: dict | None = None,
-            method: str = "GET"
+            method: str = "GET",
+            json_data: dict | None = None
     ) -> dict:
-        """Make a request to the Shelly device."""
+        """Make a request to the Shelly device with digest auth support."""
         url = f"http://{self.host}{endpoint}"
+        headers = {}
+
+        # Add auth header if we have digest auth with a saved challenge
+        if self._digest_auth and self._digest_auth.last_challenge:
+            auth_header = self._digest_auth.get_auth_header(method, url)
+            if auth_header:
+                headers["Authorization"] = auth_header
 
         try:
-            # First attempt
+            # Make request
             async with self.session.request(
                     method,
                     url,
                     params=params,
+                    json=json_data,
+                    headers=headers,
                     timeout=aiohttp.ClientTimeout(total=30)
             ) as response:
-                # Handle 401 with digest auth
-                if response.status == 401 and self._digest_auth:
-                    auth_header = await self._digest_auth.handle_401(response, method, url)
-                    if auth_header:
-                        # Retry with auth
-                        async with self.session.request(
-                                method,
-                                url,
-                                params=params,
-                                headers={"Authorization": auth_header},
-                                timeout=aiohttp.ClientTimeout(total=30)
-                        ) as auth_response:
-                            auth_response.raise_for_status()
-                            return await auth_response.json()
+                # Handle 401 - need to get challenge and retry
+                if response.status == 401:
+                    if self._digest_auth:
+                        # Parse the challenge
+                        if self._digest_auth.parse_and_save_challenge(response):
+                            # Get new auth header with the challenge
+                            auth_header = self._digest_auth.get_auth_header(method, url)
+                            if auth_header:
+                                # Retry with authentication
+                                async with self.session.request(
+                                        method,
+                                        url,
+                                        params=params,
+                                        json=json_data,
+                                        headers={"Authorization": auth_header},
+                                        timeout=aiohttp.ClientTimeout(total=30)
+                                ) as auth_response:
+                                    auth_response.raise_for_status()
+                                    return await auth_response.json()
+
+                    # If we get here, auth failed or wasn't configured
+                    _LOGGER.error("Authentication failed for %s", url)
+                    raise aiohttp.ClientResponseError(
+                        request_info=response.request_info,
+                        history=response.history,
+                        status=response.status,
+                        message="Authentication required",
+                        headers=response.headers
+                    )
 
                 response.raise_for_status()
                 return await response.json()
@@ -241,35 +266,11 @@ class ShellyBackupCoordinator:
 
     async def put_script_code(self, script_id: int, code: str) -> dict:
         """Upload script code to the device."""
-        url = f"http://{self.host}{SHELLY_SCRIPT_PUTCODE}"
-
-        try:
-            # First attempt
-            async with self.session.post(
-                    url,
-                    json={"id": script_id, "code": code},
-                    timeout=aiohttp.ClientTimeout(total=30),
-            ) as response:
-                # Handle 401 with digest auth
-                if response.status == 401 and self._digest_auth:
-                    auth_header = await self._digest_auth.handle_401(response, "POST", url)
-                    if auth_header:
-                        # Retry with auth
-                        async with self.session.post(
-                                url,
-                                json={"id": script_id, "code": code},
-                                headers={"Authorization": auth_header},
-                                timeout=aiohttp.ClientTimeout(total=30),
-                        ) as auth_response:
-                            auth_response.raise_for_status()
-                            return await auth_response.json()
-
-                response.raise_for_status()
-                return await response.json()
-
-        except aiohttp.ClientError as err:
-            _LOGGER.error("Error uploading script: %s", err)
-            raise
+        return await self._make_request(
+            SHELLY_SCRIPT_PUTCODE,
+            method="POST",
+            json_data={"id": script_id, "code": code}
+        )
 
     async def backup_scripts(self) -> None:
         """Backup all scripts from the device."""

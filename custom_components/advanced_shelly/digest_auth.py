@@ -20,8 +20,9 @@ class DigestAuth:
         challenge = {}
         parts = auth_header.replace("Digest ", "").split(", ")
         for part in parts:
-            key, value = part.split("=", 1)
-            challenge[key] = value.strip('"')
+            if "=" in part:
+                key, value = part.split("=", 1)
+                challenge[key] = value.strip('"')
         return challenge
 
     def _build_digest_header(self, method: str, uri: str, challenge: dict) -> str:
@@ -62,30 +63,33 @@ class DigestAuth:
             f'nonce="{nonce}", '
             f'uri="{uri}", '
             f'algorithm={algorithm}, '
-            f'response="{response}", '
-            f'qop={qop}, '
-            f'nc={nc_value}, '
-            f'cnonce="{cnonce}"'
+            f'response="{response}"'
         )
+
+        if qop in ("auth", "auth-int"):
+            auth_header += f', qop={qop}, nc={nc_value}, cnonce="{cnonce}"'
 
         if opaque:
             auth_header += f', opaque="{opaque}"'
 
         return auth_header
 
-    async def handle_401(
-            self, response: ClientResponse, method: str, url: str
-    ) -> Optional[str]:
-        """Handle 401 response and return Authorization header."""
+    def parse_and_save_challenge(self, response: ClientResponse) -> bool:
+        """Parse and save challenge from 401 response."""
         if response.status != 401:
-            return None
+            return False
 
         auth_header = response.headers.get("WWW-Authenticate", "")
         if not auth_header.startswith("Digest "):
-            return None
+            return False
 
-        challenge = self._parse_challenge(auth_header)
-        self.last_challenge = challenge
+        self.last_challenge = self._parse_challenge(auth_header)
+        return True
+
+    def get_auth_header(self, method: str, url: str) -> Optional[str]:
+        """Get Authorization header for a request."""
+        if not self.last_challenge:
+            return None
 
         # Extract path from URL
         from urllib.parse import urlparse
@@ -93,4 +97,4 @@ class DigestAuth:
         if urlparse(url).query:
             uri += "?" + urlparse(url).query
 
-        return self._build_digest_header(method, uri, challenge)
+        return self._build_digest_header(method, uri, self.last_challenge)
