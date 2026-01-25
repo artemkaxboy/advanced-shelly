@@ -42,18 +42,37 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             url = f"http://{host}{SHELLY_DEVICE_INFO}"
             _LOGGER.debug("Connecting to Shelly device at %s", url)
 
-            # First attempt without auth
+            device_info = None
+            digest_auth = None
+
+            if password:
+                digest_auth = DigestAuth(SHELLY_USERNAME, password)
+
+            # First attempt without auth (or with cached auth if available)
+            headers = {}
+            if digest_auth and digest_auth.last_challenge:
+                auth_header = digest_auth.get_auth_header("GET", url)
+                if auth_header:
+                    headers["Authorization"] = auth_header
+
             async with session.get(
                     url,
+                    headers=headers,
                     timeout=aiohttp.ClientTimeout(total=10)
             ) as response:
-                # If 401 and we have password, try digest auth
-                if response.status == 401 and password:
-                    digest_auth = DigestAuth(SHELLY_USERNAME, password)
-                    auth_header = await digest_auth.handle_401(response, "GET", url)
+                # If 401, need authentication
+                if response.status == 401:
+                    if not password:
+                        raise InvalidAuth("Authentication required but no password provided")
 
+                    # Parse the challenge from 401 response
+                    if not digest_auth.parse_and_save_challenge(response):
+                        raise InvalidAuth("Failed to parse authentication challenge")
+
+                    # Get auth header with the challenge
+                    auth_header = digest_auth.get_auth_header("GET", url)
                     if not auth_header:
-                        raise InvalidAuth("Failed to create digest auth")
+                        raise InvalidAuth("Failed to create digest auth header")
 
                     # Retry with authentication
                     async with session.get(
@@ -62,13 +81,10 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
                             timeout=aiohttp.ClientTimeout(total=10)
                     ) as auth_response:
                         if auth_response.status == 401:
-                            raise InvalidAuth("Authentication failed")
+                            raise InvalidAuth("Invalid username or password")
                         if auth_response.status != 200:
                             raise CannotConnect(f"HTTP {auth_response.status}")
                         device_info = await auth_response.json()
-
-                elif response.status == 401:
-                    raise InvalidAuth("Authentication required but no password provided")
 
                 elif response.status != 200:
                     raise CannotConnect(f"HTTP {response.status}")
