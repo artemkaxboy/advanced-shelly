@@ -35,12 +35,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     password = data.get(CONF_PASSWORD, "")
 
     try:
-        _LOGGER.debug("Connecting to Shelly device at %s", url)
-        async with ShellyClient(url, SHELLY_USERNAME, password) as client:
+        _LOGGER.debug(f"Connecting to Shelly device at {url}")
+        async with ShellyClient(url, password) as client:
 
             _LOGGER.debug("Getting device info")
             device_info = await client.get_device_info()
-            _LOGGER.debug("Device info: %s", device_info)
+            _LOGGER.debug(f"Device info: {device_info}")
 
             # Check if device supports scripts (Gen2+ devices)
             if "gen" not in device_info:
@@ -62,10 +62,10 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             }
 
     except aiohttp.ClientError as err:
-        _LOGGER.error("Error connecting to Shelly device: %s", err)
+        _LOGGER.error(f"Error connecting to Shelly device: {err}")
         raise CannotConnect(f"Connection error: {err}") from err
     except (KeyError, ValueError, TypeError) as err:
-        _LOGGER.error("Error parsing device response: %s", err)
+        _LOGGER.error(f"Error parsing device response: {err}")
         raise CannotConnect(f"Invalid device response: {err}") from err
 
 
