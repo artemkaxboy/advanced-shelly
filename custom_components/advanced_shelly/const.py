@@ -19,6 +19,7 @@ DEFAULT_NAME = "Shelly Device"
 # Services
 SERVICE_BACKUP_NOW = "backup_now"
 SERVICE_RESTORE_SCRIPT = "restore_script"
+SERVICE_RESTORE_CONFIG = "restore_config"
 
 # Attributes
 ATTR_DEVICE_ID = "device_id"

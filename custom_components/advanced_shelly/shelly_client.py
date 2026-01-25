@@ -46,3 +46,15 @@ class ShellyClient:
         async with self.session.post(f'{self.device_url}/rpc/Script.PutCode', json=payload) as resp:
             resp.raise_for_status()
             return await resp.json()
+
+    async def get_config(self):
+        """Get full device configuration."""
+        async with self.session.get(f'{self.device_url}/rpc/Shelly.GetConfig') as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def set_config(self, config: dict):
+        """Set device configuration."""
+        async with self.session.post(f'{self.device_url}/rpc/Shelly.SetConfig', json=config) as resp:
+            resp.raise_for_status()
+            return await resp.json()

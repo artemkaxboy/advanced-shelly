@@ -1,10 +1,10 @@
 backup_now:
   name: Backup Now
-  description: Manually trigger script backup for all devices or a specific device
+  description: Manually trigger a backup of scripts and configuration for Shelly devices
   fields:
     device_id:
       name: Device ID
-      description: ID of the device to backup (optional)
+      description: Specific device ID to backup (optional, if not provided backs up all devices)
       required: false
       example: "shellyplus1pm-a8032ab12345"
       selector:
@@ -12,11 +12,11 @@ backup_now:
 
 restore_script:
   name: Restore Script
-  description: Restore a script from backup to the device
+  description: Restore a specific script from backup to a Shelly device
   fields:
     device_id:
       name: Device ID
-      description: ID of the device
+      description: ID of the device to restore the script to
       required: true
       example: "shellyplus1pm-a8032ab12345"
       selector:
@@ -28,13 +28,32 @@ restore_script:
       example: 1
       selector:
         number:
-          min: 1
-          max: 10
+          min: 0
+          max: 99
           mode: box
     backup_path:
       name: Backup Path
-      description: Path to the backup file (optional, will use latest backup if not specified)
+      description: Custom path to the backup file (optional, uses default if not provided)
       required: false
       example: "/config/shelly_backups/shellyplus1pm-a8032ab12345/1_my_script.js"
+      selector:
+        text:
+
+restore_config:
+  name: Restore Configuration
+  description: Restore device configuration from backup
+  fields:
+    device_id:
+      name: Device ID
+      description: ID of the device to restore configuration to
+      required: true
+      example: "shellyplus1pm-a8032ab12345"
+      selector:
+        text:
+    backup_path:
+      name: Backup Path
+      description: Custom path to the backup file (optional, uses default if not provided)
+      required: false
+      example: "/config/shelly_backups/shellyplus1pm-a8032ab12345/device_config.json"
       selector:
         text:
