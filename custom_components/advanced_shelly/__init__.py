@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import voluptuous as vol
@@ -11,6 +11,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -26,10 +28,13 @@ from .const import (
     ATTR_DEVICE_ID,
     ATTR_SCRIPT_ID,
     ATTR_BACKUP_PATH,
+    PLATFORMS,
 )
 from .shelly_client import ShellyClient
 
 _LOGGER = logging.getLogger(__name__)
+
+SIGNAL_UPDATE_SHELLY = "shelly_backup_update_{}"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -43,46 +48,54 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     Path(backup_path).mkdir(parents=True, exist_ok=True)
 
     # Initialize the coordinator
-    async with ShellyClient(url, password) as client:
-        coordinator = ShellyBackupCoordinator(hass, client, backup_path)
+    coordinator = ShellyBackupCoordinator(hass, url, password, backup_path)
 
-        # Test connection
-        try:
-            await coordinator.client.get_device_info()
-        except Exception as err:
-            _LOGGER.error(f"Failed to connect to Shelly device: {err}")
-            raise ConfigEntryNotReady from err
+    # Test connection
+    try:
+        await coordinator.update_device_status()
+    except Exception as err:
+        _LOGGER.error(f"Failed to connect to Shelly device: {err}")
+        raise ConfigEntryNotReady from err
 
-        hass.data.setdefault(DOMAIN, {})
-        hass.data[DOMAIN][entry.entry_id] = coordinator
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][entry.entry_id] = coordinator
 
-        # Schedule periodic backups
-        async def periodic_backup(now):
-            """Perform periodic backup."""
-            await coordinator.backup_scripts()
-
-        cancel_interval = async_track_time_interval(
-            hass, periodic_backup, timedelta(seconds=backup_interval)
-        )
-        hass.data[DOMAIN][f"{entry.entry_id}_cancel"] = cancel_interval
-
-        # Perform initial backup
+    # Schedule periodic backups
+    async def periodic_backup(now):
+        """Perform periodic backup."""
         await coordinator.backup_scripts()
 
-        # Register services
-        await async_setup_services(hass)
+    cancel_interval = async_track_time_interval(
+        hass, periodic_backup, timedelta(seconds=backup_interval)
+    )
+    hass.data[DOMAIN][f"{entry.entry_id}_cancel"] = cancel_interval
 
-        return True
+    # Perform initial backup
+    await coordinator.backup_scripts()
+
+    # Register services
+    await async_setup_services(hass)
+
+    # Setup platforms
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    # Unload platforms
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
     # Cancel the periodic backup
     cancel_interval = hass.data[DOMAIN].pop(f"{entry.entry_id}_cancel", None)
     if cancel_interval:
         cancel_interval()
 
-    return True
+    if unload_ok:
+        hass.data[DOMAIN].pop(entry.entry_id)
+
+    return unload_ok
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:
@@ -96,8 +109,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             # Backup specific device
             for entry_id, coordinator in hass.data[DOMAIN].items():
                 if isinstance(coordinator, ShellyBackupCoordinator):
-                    info = await coordinator.client.get_device_info()
-                    if info.get("id") == device_id:
+                    if coordinator.device_id == device_id:
                         await coordinator.backup_scripts()
                         return
             _LOGGER.error("Device with ID %s not found", device_id)
@@ -115,8 +127,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         for entry_id, coordinator in hass.data[DOMAIN].items():
             if isinstance(coordinator, ShellyBackupCoordinator):
-                info = await coordinator.client.get_device_info()
-                if info.get("id") == device_id:
+                if coordinator.device_id == device_id:
                     await coordinator.restore_script(script_id, backup_path)
                     return
 
@@ -129,8 +140,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         for entry_id, coordinator in hass.data[DOMAIN].items():
             if isinstance(coordinator, ShellyBackupCoordinator):
-                info = await coordinator.client.get_device_info()
-                if info.get("id") == device_id:
+                if coordinator.device_id == device_id:
                     await coordinator.restore_config(backup_path)
                     return
 
@@ -177,95 +187,160 @@ class ShellyBackupCoordinator:
     def __init__(
             self,
             hass: HomeAssistant,
-            client: ShellyClient,
+            url: str,
+            password: str | None,
             backup_path: str
     ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
-        self.client = client
+        self.url = url
+        self.password = password
         self.backup_path = backup_path
+
+        # State tracking
+        self.device_id: str | None = None
+        self.device_name: str | None = None
+        self.last_backup_time: datetime | None = None
+        self.last_seen: datetime | None = None
+        self.is_available: bool = False
+        self.backup_count: int = 0
+        self.script_count: int = 0
+        self.last_error: str | None = None
+
+    def _update_entities(self) -> None:
+        """Trigger entity state updates via dispatcher."""
+        if self.device_id:
+            async_dispatcher_send(
+                self.hass,
+                SIGNAL_UPDATE_SHELLY.format(self.device_id)
+            )
+
+    async def update_device_status(self) -> bool:
+        """Update device availability status."""
+        try:
+            async with ShellyClient(self.url, self.password) as client:
+                device_info = await client.get_device_info()
+                self.device_id = device_info.get("id", "unknown")
+                self.device_name = device_info.get("name", "unknown")
+                self.last_seen = dt_util.utcnow()
+                self.is_available = True
+                self.last_error = None
+
+            # Update entity states
+            self._update_entities()
+            return True
+        except Exception as err:
+            _LOGGER.warning(f"Failed to update device status: {err}")
+            self.is_available = False
+            self.last_error = str(err)
+
+            # Update entity states
+            self._update_entities()
+            return False
 
     async def backup_scripts(self) -> None:
         """Backup all scripts from the device."""
         try:
-            device_info = await self.client.get_device_info()
-            device_id = device_info.get("id", "unknown")
-            device_name = device_info.get("name", "unknown")
+            # Update device status first
+            if not await self.update_device_status():
+                _LOGGER.error("Device is offline, skipping backup")
+                return
 
-            _LOGGER.info(f"Starting backup for device {device_name} ({device_id})")
+            _LOGGER.info(f"Starting backup for device {self.device_name} ({self.device_id})")
 
             # Create device-specific backup directory
-            device_backup_path = Path(self.backup_path) / device_id
+            device_backup_path = Path(self.backup_path) / self.device_id
             device_backup_path.mkdir(parents=True, exist_ok=True)
 
-            # Backup device configuration
-            await self._backup_config(device_backup_path, device_id, device_name)
+            async with ShellyClient(self.url, self.password) as client:
+                # Backup device configuration
+                await self._backup_config(client, device_backup_path, self.device_id, self.device_name)
 
-            # Backup scripts
-            scripts_response = await self.client.get_script_list()
-            scripts = scripts_response.get("scripts", [])
+                # Backup scripts
+                scripts_response = await client.get_script_list()
+                scripts = scripts_response.get("scripts", [])
+                self.script_count = len(scripts)
 
-            if not scripts:
-                _LOGGER.info(f"No scripts found on device {device_id}")
-            else:
-                # Backup each script
-                for script in scripts:
-                    script_id = script.get("id")
-                    script_name = script.get("name", f"script_{script_id}")
+                if not scripts:
+                    _LOGGER.info(f"No scripts found on device {self.device_id}")
+                else:
+                    # Backup each script
+                    backed_up_count = 0
+                    for script in scripts:
+                        script_id = script.get("id")
+                        script_name = script.get("name", f"script_{script_id}")
 
-                    _LOGGER.debug(f"Backing up script {script_name} (ID: {script_id})")
+                        _LOGGER.debug(f"Backing up script {script_name} (ID: {script_id})")
 
-                    try:
-                        code_response = await self.client.get_script_code(script_id)
-                        code = code_response.get("data", "")
+                        try:
+                            code_response = await client.get_script_code(script_id)
+                            code = code_response.get("data", "")
 
-                        # Save script code
-                        script_file = device_backup_path / f"{script_id}_{script_name}.js"
-                        with open(script_file, "w", encoding="utf-8") as f:
-                            f.write(code)
+                            # Save script code
+                            script_file = device_backup_path / f"{script_id}_{script_name}.js"
+                            with open(script_file, "w", encoding="utf-8") as f:
+                                f.write(code)
 
-                        # Save script metadata
-                        metadata = {
-                            "id": script_id,
-                            "name": script_name,
-                            "enable": script.get("enable", False),
-                            "device_id": device_id,
-                            "device_name": device_name,
-                        }
+                            # Save script metadata
+                            metadata = {
+                                "id": script_id,
+                                "name": script_name,
+                                "enable": script.get("enable", False),
+                                "device_id": self.device_id,
+                                "device_name": self.device_name,
+                            }
 
-                        metadata_file = device_backup_path / f"{script_id}_{script_name}.json"
-                        with open(metadata_file, "w", encoding="utf-8") as f:
-                            json.dump(metadata, f, indent=2)
+                            metadata_file = device_backup_path / f"{script_id}_{script_name}.json"
+                            with open(metadata_file, "w", encoding="utf-8") as f:
+                                json.dump(metadata, f, indent=2)
 
-                        _LOGGER.info(f"Backed up script {script_name} (ID: {script_id}) to {script_file}")
-                    except Exception as err:
-                        _LOGGER.error(f"Error backing up script {script_name}: {err}")
+                            _LOGGER.info(f"Backed up script {script_name} (ID: {script_id})")
+                            backed_up_count += 1
+                        except Exception as err:
+                            _LOGGER.error(f"Error backing up script {script_name}: {err}")
 
-            _LOGGER.info(f"Backup completed for device {device_id}")
+            # Update backup metrics (use timezone-aware datetime)
+            self.last_backup_time = dt_util.utcnow()
+            self.backup_count += 1
+            self.last_error = None
+
+            # Update entity states
+            self._update_entities()
+
+            _LOGGER.info(f"Backup completed for device {self.device_id}")
 
         except Exception as err:
             _LOGGER.error(f"Error during backup: {err}")
+            self.last_error = str(err)
+            self._update_entities()
             raise
 
-    async def _backup_config(self, device_backup_path: Path, device_id: str, device_name: str) -> None:
+    async def _backup_config(
+            self,
+            client: ShellyClient,
+            device_backup_path: Path,
+            device_id: str,
+            device_name: str
+    ) -> None:
         """Backup device configuration."""
         try:
             _LOGGER.debug(f"Backing up configuration for device {device_id}")
 
-            config = await self.client.get_config()
+            config = await client.get_config()
 
             # Save full configuration
             config_file = device_backup_path / "device_config.json"
             config_data = {
                 "device_id": device_id,
                 "device_name": device_name,
-                "config": config
+                "config": config,
+                "backup_time": dt_util.utcnow().isoformat(),
             }
 
             with open(config_file, "w", encoding="utf-8") as f:
                 json.dump(config_data, f, indent=2)
 
-            _LOGGER.info(f"Backed up configuration for device {device_id} to {config_file}")
+            _LOGGER.info(f"Backed up configuration for device {device_id}")
 
         except Exception as err:
             _LOGGER.error(f"Error backing up configuration: {err}")
@@ -274,14 +349,15 @@ class ShellyBackupCoordinator:
     async def restore_script(self, script_id: int, backup_path: str | None = None) -> None:
         """Restore a script from backup."""
         try:
-            device_info = await self.client.get_device_info()
-            device_id = device_info.get("id", "unknown")
+            if not await self.update_device_status():
+                _LOGGER.error("Device is offline, cannot restore script")
+                return
 
             if backup_path:
                 script_file = Path(backup_path)
             else:
                 # Find the script in the default backup location
-                device_backup_path = Path(self.backup_path) / device_id
+                device_backup_path = Path(self.backup_path) / self.device_id
                 script_files = list(device_backup_path.glob(f"{script_id}_*.js"))
 
                 if not script_files:
@@ -296,7 +372,8 @@ class ShellyBackupCoordinator:
 
             # Upload to device
             _LOGGER.info(f"Restoring script ID {script_id} from {script_file}")
-            await self.client.put_script_code(script_id, code)
+            async with ShellyClient(self.url, self.password) as client:
+                await client.put_script_code(script_id, code)
             _LOGGER.info(f"Script ID {script_id} restored successfully")
 
         except Exception as err:
@@ -306,14 +383,15 @@ class ShellyBackupCoordinator:
     async def restore_config(self, backup_path: str | None = None) -> None:
         """Restore device configuration from backup."""
         try:
-            device_info = await self.client.get_device_info()
-            device_id = device_info.get("id", "unknown")
+            if not await self.update_device_status():
+                _LOGGER.error("Device is offline, cannot restore configuration")
+                return
 
             if backup_path:
                 config_file = Path(backup_path)
             else:
                 # Use default backup location
-                device_backup_path = Path(self.backup_path) / device_id
+                device_backup_path = Path(self.backup_path) / self.device_id
                 config_file = device_backup_path / "device_config.json"
 
             if not config_file.exists():
@@ -328,8 +406,9 @@ class ShellyBackupCoordinator:
 
             # Restore configuration to device
             _LOGGER.info(f"Restoring configuration from {config_file}")
-            await self.client.set_config(config)
-            _LOGGER.info(f"Configuration restored successfully for device {device_id}")
+            async with ShellyClient(self.url, self.password) as client:
+                await client.set_config(config)
+            _LOGGER.info(f"Configuration restored successfully for device {self.device_id}")
 
         except Exception as err:
             _LOGGER.error(f"Error restoring configuration: {err}")

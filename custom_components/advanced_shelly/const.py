@@ -25,3 +25,6 @@ SERVICE_RESTORE_CONFIG = "restore_config"
 ATTR_DEVICE_ID = "device_id"
 ATTR_SCRIPT_ID = "script_id"
 ATTR_BACKUP_PATH = "backup_path"
+
+# Platforms
+PLATFORMS = ["sensor", "binary_sensor"]
