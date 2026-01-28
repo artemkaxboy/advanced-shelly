@@ -7,7 +7,7 @@ from typing import Any
 import aiohttp
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import selector
@@ -74,6 +74,14 @@ class AdvancedShellyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+            config_entry: config_entries.ConfigEntry,
+    ) -> AdvancedShellyOptionsFlow:
+        """Get the options flow for this handler."""
+        return AdvancedShellyOptionsFlow(config_entry)
+
     async def async_step_user(
             self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -128,6 +136,65 @@ class AdvancedShellyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user", data_schema=data_schema, errors=errors
+        )
+
+
+class AdvancedShellyOptionsFlow(config_entries.OptionsFlow):
+    """Handle options flow for Advanced Shelly integration."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        super().__init__()
+        self._config_entry = config_entry
+
+    async def async_step_init(
+            self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            # Update config entry data with new values
+            new_data = {**self._config_entry.data}
+            new_data[CONF_BACKUP_INTERVAL] = user_input[CONF_BACKUP_INTERVAL]
+            new_data[CONF_BACKUP_PATH] = user_input[CONF_BACKUP_PATH]
+
+            self.hass.config_entries.async_update_entry(
+                self._config_entry,
+                data=new_data,
+            )
+
+            return self.async_create_entry(title="", data={})
+
+        current_backup_interval = self._config_entry.data.get(
+            CONF_BACKUP_INTERVAL, DEFAULT_BACKUP_INTERVAL
+        )
+        current_backup_path = self._config_entry.data.get(
+            CONF_BACKUP_PATH, DEFAULT_BACKUP_PATH
+        )
+
+        options_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_BACKUP_INTERVAL,
+                    default=current_backup_interval
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=3600,
+                        max=604800,
+                        step=3600,
+                        unit_of_measurement="seconds",
+                        mode=selector.NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Optional(
+                    CONF_BACKUP_PATH,
+                    default=current_backup_path
+                ): str,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=options_schema,
         )
 
 

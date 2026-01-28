@@ -5,22 +5,34 @@
         "title": "Advanced Shelly",
         "description": "Configure Shelly device for automatic script backups",
         "data": {
-          "host": "Device IP address or hostname",
-          "name": "Device name",
-          "password": "Password (optional)",
-          "backup_path": "Backup directory path",
-          "backup_interval": "Backup interval (seconds)"
+          "url": "Device URL (e.g., http://192.168.1.100)",
+          "name": "Device Name",
+          "password": "Password (if required)",
+          "backup_path": "Backup Path",
+          "backup_interval": "Backup Interval"
         }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to the device",
+      "cannot_connect": "Failed to connect to device",
       "invalid_auth": "Invalid authentication",
-      "unsupported_device": "Device does not support scripts",
+      "unsupported_device": "Device does not support scripts (Gen2+ required)",
       "unknown": "Unexpected error occurred"
     },
     "abort": {
       "already_configured": "Device is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Backup Settings",
+        "description": "Configure backup interval and path",
+        "data": {
+          "backup_interval": "Backup Interval (seconds)",
+          "backup_path": "Backup Path"
+        }
+      }
     }
   }
 }
