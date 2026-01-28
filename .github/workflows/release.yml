@@ -1,13 +1,16 @@
-name: Create Release
+name: Auto Tag and Release
 
 on:
   push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+    branches:
+      - main
+      - master
+    paths:
+      - 'custom_components/advanced_shelly/manifest.json'
 
 jobs:
-  release:
-    name: Create Release
+  auto-tag-and-release:
+    name: Create Tag and Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -18,37 +21,57 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract tag name
-        id: tag_name
-        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Read version from manifest
+        id: version
+        run: |
+          VERSION=$(jq -r '.version' custom_components/advanced_shelly/manifest.json)
+          TAG="v${VERSION}"
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "TAG=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          if git rev-parse "${{ steps.version.outputs.TAG }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create tag
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.TAG }}" -m "Release ${{ steps.version.outputs.TAG }}"
+          git push origin "${{ steps.version.outputs.TAG }}"
 
       - name: Generate changelog
+        if: steps.check_tag.outputs.exists == 'false'
         id: changelog
         run: |
-          # Получаем предыдущий тег
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           
           if [ -z "$PREV_TAG" ]; then
-            # Если это первый тег, берем все коммиты
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" --reverse)
           else
-            # Иначе берем коммиты между тегами
             CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --reverse)
           fi
           
-          # Сохраняем в многострочную переменную
           echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create Release
+        if: steps.check_tag.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          name: ${{ steps.tag_name.outputs.TAG }}
-          tag_name: ${{ steps.tag_name.outputs.TAG }}
+          name: ${{ steps.version.outputs.TAG }}
+          tag_name: ${{ steps.version.outputs.TAG }}
           body: |
-            ## Changes in ${{ steps.tag_name.outputs.TAG }}
+            ## Release ${{ steps.version.outputs.TAG }}
             
+            ### Changes
             ${{ steps.changelog.outputs.CHANGELOG }}
           draft: false
           prerelease: false
