@@ -209,6 +209,7 @@ class ShellyBackupCoordinator:
         # State tracking
         self.device_id: str | None = None
         self.device_name: str | None = None
+        self.device_mac: str | None = None
         self.last_backup_time: datetime | None = None
         self.last_seen: datetime | None = None
         self.is_available: bool = False
@@ -231,6 +232,7 @@ class ShellyBackupCoordinator:
                 device_info = await client.get_device_info()
                 self.device_id = device_info.get("id", "unknown")
                 self.device_name = device_info.get("name", "unknown")
+                self.device_mac = device_info.get("mac")
                 self.last_seen = dt_util.utcnow()
                 self.is_available = True
                 self.last_error = None
