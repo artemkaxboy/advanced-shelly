@@ -1,49 +1,63 @@
 # Changelog
 
-Все значимые изменения в проекте будут документироваться в этом файле.
+All notable changes to this project will be documented in this file.
 
-Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
-и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
+and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [1.0.15] - 2025-01-28
+
+### Added
+- Device configuration backup (`device_config.json`) using Shelly GetConfig
+- `restore_config` service to restore device configuration
+- Connectivity binary sensor for device online/offline status
+- Last backup timestamp sensor and script count sensor
+- Options flow to change backup interval and backup path
+
+### Changed
+- Backup process now updates entity state and backup metrics after each run
+- Script metadata includes device ID and device name
 
 ## [1.0.1] - 2025-01-24
 
 ### Fixed
-- Исправлена ошибка `KeyError: 'title'` при добавлении устройства через UI
-- Улучшена обработка ошибок в config flow
-- Добавлено подробное логирование для упрощения отладки
-- Улучшены сообщения об ошибках при подключении к устройству
-- Добавлена обработка различных типов ошибок парсинга ответа устройства
+- Fixed `KeyError: 'title'` when adding a device via the UI
+- Improved error handling in the config flow
+- Added detailed logging to simplify debugging
+- Improved connection error messages
+- Added handling for different device response parsing errors
 
 ## [1.0.0] - 2025-01-24
 
-### Добавлено
-- Начальный релиз интеграции Advanced Shelly
-- Автоматическое резервное копирование скриптов с устройств Shelly Gen2+
-- Настраиваемый интервал резервного копирования
-- Сохранение метаданных скриптов (имя, ID, статус)
-- Сервис `backup_now` для ручного запуска резервного копирования
-- Сервис `restore_script` для восстановления скриптов из бэкапа
-- Поддержка нескольких устройств Shelly
-- Настройка через UI (config flow)
-- Русская и английская локализация
-- Подробная документация и примеры использования
-- Примеры автоматизаций
-- Примеры Lovelace карточек
-- Документация API Shelly
-- Руководство по разработке
+### Added
+- Initial release of the Advanced Shelly integration
+- Automatic backup of scripts from Shelly Gen2+ devices
+- Configurable backup interval
+- Script metadata storage (name, ID, status)
+- `backup_now` service for manual backup
+- `restore_script` service to restore scripts from backup
+- Support for multiple Shelly devices
+- UI setup (config flow)
+- Russian and English localization
+- Detailed documentation and usage examples
+- Automation examples
+- Lovelace card examples
+- Shelly API documentation
+- Development guide
 
-### Особенности
-- Совместимость с Home Assistant 2024.1.0+
-- Поддержка всех устройств Shelly Gen2+ со скриптами
-- Автоматическое создание структуры директорий для бэкапов
-- Сохранение скриптов в текстовом формате для удобного просмотра
-- Сохранение метаданных в JSON формате
-- Периодическое автоматическое резервное копирование
-- Проверка соединения при настройке
-- Обработка ошибок подключения
+### Features
+- Compatible with Home Assistant 2024.1.0+
+- Supports all Shelly Gen2+ devices with scripts
+- Automatic creation of backup directory structure
+- Stores scripts in text format for easy viewing
+- Stores metadata in JSON format
+- Periodic automatic backups
+- Connection check during setup
+- Connection error handling
 
-[Unreleased]: https://github.com/artemkaxboy/advanced-shelly/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/artemkaxboy/advanced-shelly/compare/v1.0.15...HEAD
+[1.0.15]: https://github.com/artemkaxboy/advanced-shelly/releases/tag/v1.0.15
 [1.0.1]: https://github.com/artemkaxboy/advanced-shelly/releases/tag/v1.0.1
 [1.0.0]: https://github.com/artemkaxboy/advanced-shelly/releases/tag/v1.0.0

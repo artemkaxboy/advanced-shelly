@@ -1,50 +1,47 @@
-# Руководство по разработке и тестированию
+# Development and testing guide
 
-## Структура проекта
+## Project structure
 
 ```
-shelly_scripts_backup/
-├── __init__.py              # Основная логика интеграции
-├── config_flow.py           # Настройка через UI
-├── const.py                 # Константы
-├── manifest.json            # Метаданные интеграции
-├── services.yaml            # Описание сервисов
-├── strings.json             # Базовые строки
-├── translations/            # Переводы
+custom_components/advanced_shelly/
+├── __init__.py              # Integration core logic
+├── config_flow.py           # UI setup
+├── const.py                 # Constants
+├── manifest.json            # Integration metadata
+├── services.yaml            # Service descriptions
+├── strings.json             # Base strings
+├── translations/            # Translations
 │   ├── en.json
 │   └── ru.json
-├── examples/                # Примеры использования
-│   ├── automations.yaml
-│   └── lovelace.yaml
-└── docs/                    # Документация
-    └── API.md
 ```
 
-## Требования для разработки
+## Development requirements
 
 - Python 3.11+
 - Home Assistant Core 2024.1.0+
-- Shelly Gen2+ устройство для тестирования
+- Shelly Gen2+ device for testing
 
-## Локальная разработка
+## Local development
 
-### 1. Клонирование и установка
+### 1. Clone and install
 
 ```bash
-# Клонировать в custom_components Home Assistant
+# Clone the repo and link the integration folder into Home Assistant
 cd /path/to/homeassistant/config
 mkdir -p custom_components
 cd custom_components
-git clone <your-repo> shelly_scripts_backup
+git clone https://github.com/artemkaxboy/advanced-shelly.git
+
+# The integration is in custom_components/advanced_shelly
 ```
 
-### 2. Установка зависимостей для разработки
+### 2. Install development dependencies
 
 ```bash
 pip install -r requirements_dev.txt
 ```
 
-Создайте `requirements_dev.txt`:
+Create `requirements_dev.txt`:
 ```
 homeassistant>=2024.1.0
 pytest>=7.0.0
@@ -53,14 +50,14 @@ pytest-homeassistant-custom-component
 aiohttp>=3.8.0
 ```
 
-### 3. Настройка среды разработки
+### 3. Configure the development environment
 
-Рекомендуется использовать VS Code с расширениями:
+VS Code with these extensions is recommended:
 - Python
 - Home Assistant Config Helper
 - YAML
 
-Настройки `.vscode/settings.json`:
+`.vscode/settings.json` example:
 ```json
 {
   "python.linting.enabled": true,
@@ -70,157 +67,140 @@ aiohttp>=3.8.0
 }
 ```
 
-## Тестирование
+## Testing
 
-### Юнит-тесты
+### Unit tests
 
-Создайте `tests/test_init.py`:
+Create `tests/test_coordinator.py`:
 
 ```python
-"""Tests for Shelly Scripts Backup integration."""
+"""Tests for Advanced Shelly coordinator."""
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import AsyncMock, patch, MagicMock
 from homeassistant.core import HomeAssistant
 
-from custom_components.shelly_scripts_backup import (
-    ShellyBackupCoordinator,
-)
+from custom_components.advanced_shelly import ShellyBackupCoordinator
 
 
 @pytest.mark.asyncio
-async def test_get_device_info():
-    """Test getting device info."""
+async def test_update_device_status_success():
+    """Test updating device status when the device is reachable."""
     hass = MagicMock(spec=HomeAssistant)
-    coordinator = ShellyBackupCoordinator(hass, "192.168.1.100", "/tmp/backups")
-    
-    with patch.object(coordinator, '_make_request') as mock_request:
-        mock_request.return_value = {
-            "id": "test-device",
-            "name": "Test Shelly",
-            "gen": 2
-        }
-        
-        result = await coordinator.get_device_info()
-        assert result["id"] == "test-device"
-        assert result["gen"] == 2
+    coordinator = ShellyBackupCoordinator(hass, "http://192.168.1.100", None, "/tmp/backups")
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.get_device_info.return_value = {"id": "test-device", "name": "Test Shelly"}
+
+    with patch("custom_components.advanced_shelly.ShellyClient", return_value=mock_client):
+        result = await coordinator.update_device_status()
+
+    assert result is True
+    assert coordinator.device_id == "test-device"
+    assert coordinator.device_name == "Test Shelly"
 
 
 @pytest.mark.asyncio
-async def test_backup_scripts():
-    """Test backing up scripts."""
+async def test_backup_scripts_no_scripts():
+    """Test backup when the device has no scripts."""
     hass = MagicMock(spec=HomeAssistant)
-    coordinator = ShellyBackupCoordinator(hass, "192.168.1.100", "/tmp/backups")
-    
-    with patch.object(coordinator, 'get_device_info') as mock_info, \
-         patch.object(coordinator, 'get_scripts_list') as mock_list, \
-         patch.object(coordinator, 'get_script_code') as mock_code:
-        
-        mock_info.return_value = {"id": "test-device", "name": "Test"}
-        mock_list.return_value = [{"id": 1, "name": "test_script"}]
-        mock_code.return_value = "let x = 1;"
-        
+    coordinator = ShellyBackupCoordinator(hass, "http://192.168.1.100", None, "/tmp/backups")
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.get_device_info.return_value = {"id": "test-device", "name": "Test Shelly"}
+    mock_client.get_script_list.return_value = {"scripts": []}
+    mock_client.get_config.return_value = {"sys": {}}
+
+    with patch("custom_components.advanced_shelly.ShellyClient", return_value=mock_client):
         await coordinator.backup_scripts()
-        
-        mock_info.assert_called_once()
-        mock_list.assert_called_once()
-        mock_code.assert_called_once_with(1)
+
+    assert coordinator.script_count == 0
 ```
 
-Запуск тестов:
+Run tests:
 ```bash
 pytest tests/
 ```
 
-### Интеграционное тестирование
+### Integration testing
 
-Используйте реальное устройство Shelly для тестирования:
+Use a real Shelly device for testing:
 
 ```bash
-# Установите переменные окружения
-export SHELLY_TEST_IP="192.168.1.100"
+# Set environment variables
+export SHELLY_TEST_URL="http://192.168.1.100"
+export SHELLY_TEST_PASSWORD=""
 export SHELLY_TEST_BACKUP_PATH="/tmp/shelly_test_backups"
 
-# Запустите интеграционные тесты
+# Run integration tests
 pytest tests/integration/
 ```
 
-### Ручное тестирование
+### Manual testing
 
-1. Перезапустите Home Assistant
-2. Проверьте логи:
+1. Restart Home Assistant
+2. Check logs:
 ```bash
-tail -f /config/home-assistant.log | grep shelly_scripts_backup
+tail -f /config/home-assistant.log | grep advanced_shelly
 ```
 
-3. Добавьте интеграцию через UI
-4. Проверьте создание бэкапов
-5. Протестируйте сервисы через Developer Tools → Services
+3. Add the integration via the UI
+4. Verify backup creation
+5. Test services via Developer Tools → Services
 
-## Отладка
+## Debugging
 
-### Включение debug логов
+### Enable debug logs
 
-В `configuration.yaml`:
+In `configuration.yaml`:
 ```yaml
 logger:
   default: info
   logs:
-    custom_components.shelly_scripts_backup: debug
+    custom_components.advanced_shelly: debug
     aiohttp: debug
 ```
 
-### Использование pdb
+### Use pdb
 
-Добавьте в код:
+Add to code:
 ```python
 import pdb; pdb.set_trace()
 ```
 
-### Просмотр HTTP запросов
+## Code checks
 
-```python
-import logging
-
-_LOGGER = logging.getLogger(__name__)
-
-async def _make_request(self, endpoint: str, params: dict | None = None) -> dict:
-    url = f"http://{self.host}{endpoint}"
-    _LOGGER.debug("Making request to %s with params %s", url, params)
-    # ... rest of code
-```
-
-## Проверка кода
-
-### Форматирование
+### Formatting
 
 ```bash
 # Black formatter
-black custom_components/shelly_scripts_backup/
+black custom_components/advanced_shelly/
 
-# isort для импортов
-isort custom_components/shelly_scripts_backup/
+# isort for imports
+isort custom_components/advanced_shelly/
 ```
 
-### Линтинг
+### Linting
 
 ```bash
 # pylint
-pylint custom_components/shelly_scripts_backup/
+pylint custom_components/advanced_shelly/
 
 # flake8
-flake8 custom_components/shelly_scripts_backup/
+flake8 custom_components/advanced_shelly/
 ```
 
-### Проверка типов
+### Type checking
 
 ```bash
 # mypy
-mypy custom_components/shelly_scripts_backup/
+mypy custom_components/advanced_shelly/
 ```
 
 ## CI/CD
 
-Пример `.github/workflows/test.yml`:
+Example `.github/workflows/test.yml`:
 
 ```yaml
 name: Test
@@ -232,81 +212,81 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
           pip install -r requirements_dev.txt
-      
+
       - name: Lint with pylint
         run: |
-          pylint custom_components/shelly_scripts_backup/
-      
+          pylint custom_components/advanced_shelly/
+
       - name: Test with pytest
         run: |
           pytest tests/
 ```
 
-## Публикация в HACS
+## Publish to HACS
 
-1. Создайте релиз в GitHub:
+1. Create a release on GitHub:
 ```bash
-git tag -a v1.0.0 -m "First release"
-git push origin v1.0.0
+git tag -a v1.0.15 -m "Release v1.0.15"
+git push origin v1.0.15
 ```
 
-2. Убедитесь, что `hacs.json` заполнен правильно
+2. Ensure `hacs.json` is filled out correctly
 
-3. Отправьте PR в [HACS default repository](https://github.com/hacs/default)
+3. Submit a PR to the [HACS default repository](https://github.com/hacs/default)
 
-## Обновление документации
+## Documentation updates
 
-При добавлении новых фич обновите:
+When adding new features, update:
 - README.md
-- API.md (если меняется API)
-- examples/ (добавьте примеры использования)
-- translations/ (добавьте переводы)
+- docs/API.md (if the API usage changes)
+- examples/ (add usage examples)
+- translations/ (add translations)
 
-## Полезные команды
+## Useful commands
 
 ```bash
-# Проверить JSON файлы
-python -m json.tool manifest.json
+# Validate JSON files
+python -m json.tool custom_components/advanced_shelly/manifest.json
 
-# Проверить YAML файлы
-yamllint services.yaml
+# Validate YAML files
+yamllint custom_components/advanced_shelly/services.yaml
 
-# Создать архив для ручной установки
-tar -czf shelly_scripts_backup.tar.gz shelly_scripts_backup/
+# Create archive for manual installation
+tar -czf advanced_shelly.tar.gz custom_components/advanced_shelly/
 
-# Очистить __pycache__
+# Clear __pycache__
 find . -type d -name __pycache__ -exec rm -rf {} +
 ```
 
-## Советы
+## Tips
 
-1. **Версионирование**: Следуйте [Semantic Versioning](https://semver.org/)
-2. **Коммиты**: Используйте [Conventional Commits](https://www.conventionalcommits.org/)
-3. **Changelog**: Ведите CHANGELOG.md для отслеживания изменений
-4. **Безопасность**: Никогда не коммитьте пароли или IP-адреса
-5. **Совместимость**: Тестируйте с последней версией Home Assistant
+1. **Versioning**: Follow [Semantic Versioning](https://semver.org/)
+2. **Commits**: Use [Conventional Commits](https://www.conventionalcommits.org/)
+3. **Changelog**: Maintain CHANGELOG.md to track changes
+4. **Security**: Never commit passwords or device URLs
+5. **Compatibility**: Test with the latest Home Assistant version
 
-## Известные проблемы
+## Known issues
 
-- Устройства Gen1 не поддерживаются
-- Аутентификация Digest Auth может работать нестабильно
-- Большие скрипты (>10KB) могут загружаться медленно
+- Gen1 devices are not supported
+- Digest Auth authentication can be unstable
+- Large scripts (>10KB) may upload slowly
 
-## Дорожная карта
+## Roadmap
 
-Планируемые улучшения:
-- [ ] Поддержка инкрементных бэкапов
-- [ ] Шифрование бэкапов
-- [ ] Интеграция с Git для версионирования
-- [ ] Dashboard для просмотра истории изменений
-- [ ] Автоматическое восстановление при ошибках
-- [ ] Поддержка webhook для уведомлений
+Planned improvements:
+- [ ] Incremental backups
+- [ ] Backup encryption
+- [ ] Git integration for versioning
+- [ ] Dashboard for change history
+- [ ] Automatic recovery on errors
+- [ ] Webhook support for notifications

@@ -1,132 +1,117 @@
 # Advanced Shelly
 
-Автоматическое резервное копирование скриптов с устройств Shelly Gen2+ для Home Assistant.
+Automatic backup of scripts and device configuration from Shelly Gen2+ devices for Home Assistant.
 
-## Возможности
+## Features
 
-- ✅ Автоматическое периодическое резервное копирование скриптов
-- ✅ Настраиваемый интервал резервного копирования
-- ✅ Сохранение кода скриптов и метаданных
-- ✅ Ручной запуск резервного копирования
-- ✅ Восстановление скриптов из резервной копии
-- ✅ Поддержка нескольких устройств Shelly
-- ✅ Простая настройка через UI
-- ✅ Русская и английская локализация
+- ✅ Scheduled backups of scripts and configuration
+- ✅ Configurable backup interval and backup path
+- ✅ Manual backup trigger
+- ✅ Restore scripts from backup
+- ✅ Restore device configuration from backup
+- ✅ Support for multiple Shelly devices
+- ✅ Optional Digest Auth (username `admin`)
+- ✅ Sensors for last backup, script count, and connectivity
 
-## Поддерживаемые устройства
+## Supported devices
 
-Все устройства Shelly Gen2+, которые поддерживают скрипты:
+All Shelly Gen2+ devices that support scripts:
 - Shelly Plus 1/1PM
 - Shelly Plus 2PM
 - Shelly Plus I4
 - Shelly Plus Plug S
-- Shelly Pro серии
-- И другие Gen2+ устройства
+- Shelly Pro series
+- And other Gen2+ devices
 
-**⚠️ Важно:** Устройства Gen1 не поддерживаются, так как они не имеют функционала скриптов.
+**Important:** Gen1 devices are not supported because they do not provide script functionality.
 
-## Быстрый старт
+## Quick start
 
-### 1. Установка через HACS
+### 1. Install via HACS
 
-1. В HACS перейдите в "Integrations"
-2. Нажмите на три точки в правом верхнем углу → "Custom repositories"
-3. Добавьте URL: `https://github.com/artemkaxboy/advanced-shelly`
-4. Выберите категорию "Integration"
-5. Найдите "Advanced Shelly" в списке интеграций
-6. Нажмите "Download"
-7. Перезапустите Home Assistant
+1. In HACS, go to "Integrations"
+2. Click the three dots in the top-right corner → "Custom repositories"
+3. Add the URL: `https://github.com/artemkaxboy/advanced-shelly`
+4. Select the category "Integration"
+5. Find "Advanced Shelly" in the integrations list
+6. Click "Download"
+7. Restart Home Assistant
 
-### 2. Настройка интеграции
+### 2. Set up the integration
 
-1. Перейдите в Settings → Devices & Services
-2. Нажмите "+ Add Integration"
-3. Найдите "Advanced Shelly"
-4. Введите данные:
-   - **IP-адрес** устройства Shelly (например: 192.168.1.100)
-   - **Название** устройства (необязательно)
-   - **Путь для бэкапов** (по умолчанию: /config/shelly_backups)
-   - **Интервал резервного копирования** в секундах (по умолчанию: 86400 = 24 часа)
-5. Нажмите "Submit"
+1. Go to Settings → Devices & Services
+2. Click "+ Add Integration"
+3. Find "Advanced Shelly"
+4. Enter:
+   - Device URL (e.g., `http://192.168.1.100`)
+   - Device name (optional)
+   - Password (optional; Digest Auth for `admin`)
+   - Backup path (default: /config/shelly_backups)
+   - Backup interval in seconds (default: 86400 = 24 hours)
+5. Click "Submit"
 
-Первый бэкап будет создан автоматически при настройке!
+The first backup will be created automatically during setup.
 
-## Использование
+## Usage
 
-### Структура бэкапов
+### Backup structure
 
 ```
 /config/shelly_backups/
 └── shellyplus1pm-a8032ab12345/
-    ├── 1_my_script.js       # Код скрипта
-    ├── 1_my_script.json     # Метаданные
+    ├── device_config.json
+    ├── 1_my_script.js       # Script code
+    ├── 1_my_script.json     # Metadata
     ├── 2_automation.js
     └── 2_automation.json
 ```
 
-### Доступные сервисы
+### Available services
 
-#### Создать бэкап вручную
+#### Create a manual backup
 ```yaml
 service: advanced_shelly.backup_now
 data:
-  device_id: shellyplus1pm-a8032ab12345  # необязательно
+  device_id: shellyplus1pm-a8032ab12345  # optional
 ```
 
-#### Восстановить скрипт
+#### Restore a script
 ```yaml
 service: advanced_shelly.restore_script
 data:
   device_id: shellyplus1pm-a8032ab12345
   script_id: 1
-  backup_path: /config/shelly_backups/.../1_script.js  # необязательно
+  backup_path: /config/shelly_backups/.../1_script.js  # optional
 ```
 
-### Пример автоматизации
-
-Ежедневный бэкап в 2 часа ночи:
-
+#### Restore device configuration
 ```yaml
-automation:
-  - alias: "Daily Shelly Backup"
-    trigger:
-      - platform: time
-        at: "02:00:00"
-    action:
-      - service: advanced_shelly.backup_now
+service: advanced_shelly.restore_config
+data:
+  device_id: shellyplus1pm-a8032ab12345
+  backup_path: /config/shelly_backups/.../device_config.json  # optional
 ```
 
-### Кнопка на дашборде
+## Documentation
 
-```yaml
-type: button
-name: Backup Shelly Scripts
-icon: mdi:backup-restore
-tap_action:
-  action: call-service
-  service: advanced_shelly.backup_now
-```
+- [Full documentation on GitHub](https://github.com/artemkaxboy/advanced-shelly)
+- [Automation examples](https://github.com/artemkaxboy/advanced-shelly/blob/main/examples/automations.yaml)
+- [Lovelace card examples](https://github.com/artemkaxboy/advanced-shelly/blob/main/examples/lovelace.yaml)
+- [Shelly API documentation](https://github.com/artemkaxboy/advanced-shelly/blob/main/docs/API.md)
 
-## Документация
+## Help and support
 
-- [Полная документация на GitHub](https://github.com/artemkaxboy/advanced-shelly)
-- [Примеры автоматизаций](https://github.com/artemkaxboy/advanced-shelly/blob/main/examples/automations.yaml)
-- [Примеры Lovelace карточек](https://github.com/artemkaxboy/advanced-shelly/blob/main/examples/lovelace.yaml)
-- [Документация Shelly API](https://github.com/artemkaxboy/advanced-shelly/blob/main/docs/API.md)
+- 🐛 [Report an issue](https://github.com/artemkaxboy/advanced-shelly/issues)
+- 💬 [Discussions](https://github.com/artemkaxboy/advanced-shelly/discussions)
+- ⭐ [Star on GitHub](https://github.com/artemkaxboy/advanced-shelly)
 
-## Помощь и поддержка
+## Security
 
-- 🐛 [Сообщить о проблеме](https://github.com/artemkaxboy/advanced-shelly/issues)
-- 💬 [Обсуждения](https://github.com/artemkaxboy/advanced-shelly/discussions)
-- ⭐ [Поставить звезду на GitHub](https://github.com/artemkaxboy/advanced-shelly)
-
-## Безопасность
-
-- Интеграция работает полностью локально
-- Никакие данные не передаются за пределы вашей сети
-- Скрипты хранятся в виде обычных текстовых файлов
-- Рекомендуется регулярно делать резервные копии папки с бэкапами
+- The integration works fully locally
+- Scripts and configuration are stored as plain text files
+- No data is transmitted outside your network
+- Regular backups of the backup folder are recommended
 
 ---
 
-**Приятного использования! 🎉**
+**Enjoy! 🎉**

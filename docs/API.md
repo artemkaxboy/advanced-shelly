@@ -1,13 +1,13 @@
-# Shelly Gen2+ API Reference для работы со скриптами
+# Shelly Gen2+ API Reference for Scripts and Configuration
 
-## Основные endpoint'ы
+## Core endpoints
 
-### 1. Получение информации об устройстве
+### 1. Get device info
 ```
-GET http://{device_ip}/rpc/Shelly.GetDeviceInfo
+GET {device_url}/rpc/Shelly.GetDeviceInfo
 ```
 
-Ответ:
+Response:
 ```json
 {
   "name": "My Shelly Plus 1PM",
@@ -23,12 +23,12 @@ GET http://{device_ip}/rpc/Shelly.GetDeviceInfo
 }
 ```
 
-### 2. Получение списка скриптов
+### 2. List scripts
 ```
-GET http://{device_ip}/rpc/Script.List
+GET {device_url}/rpc/Script.List
 ```
 
-Ответ:
+Response:
 ```json
 {
   "scripts": [
@@ -48,21 +48,21 @@ GET http://{device_ip}/rpc/Script.List
 }
 ```
 
-### 3. Получение кода скрипта
+### 3. Get script code
 ```
-GET http://{device_ip}/rpc/Script.GetCode?id={script_id}
+GET {device_url}/rpc/Script.GetCode?id={script_id}
 ```
 
-Ответ:
+Response:
 ```json
 {
   "data": "let CONFIG = {\n  humidity_threshold: 70,\n  fan_switch_id: 0\n};\n\n// Script code here..."
 }
 ```
 
-### 4. Загрузка кода скрипта
+### 4. Upload script code
 ```
-POST http://{device_ip}/rpc/Script.PutCode
+POST {device_url}/rpc/Script.PutCode
 Content-Type: application/json
 
 {
@@ -72,16 +72,16 @@ Content-Type: application/json
 }
 ```
 
-Ответ:
+Response:
 ```json
 {
   "len": 1234
 }
 ```
 
-### 5. Создание нового скрипта
+### 5. Create a new script
 ```
-POST http://{device_ip}/rpc/Script.Create
+POST {device_url}/rpc/Script.Create
 Content-Type: application/json
 
 {
@@ -89,16 +89,16 @@ Content-Type: application/json
 }
 ```
 
-Ответ:
+Response:
 ```json
 {
   "id": 3
 }
 ```
 
-### 6. Удаление скрипта
+### 6. Delete a script
 ```
-POST http://{device_ip}/rpc/Script.Delete
+POST {device_url}/rpc/Script.Delete
 Content-Type: application/json
 
 {
@@ -106,9 +106,9 @@ Content-Type: application/json
 }
 ```
 
-### 7. Включение/выключение скрипта
+### 7. Enable/disable a script
 ```
-POST http://{device_ip}/rpc/Script.SetConfig
+POST {device_url}/rpc/Script.SetConfig
 Content-Type: application/json
 
 {
@@ -119,9 +119,9 @@ Content-Type: application/json
 }
 ```
 
-### 8. Запуск/остановка скрипта
+### 8. Start/stop a script
 ```
-POST http://{device_ip}/rpc/Script.Start
+POST {device_url}/rpc/Script.Start
 Content-Type: application/json
 
 {
@@ -130,7 +130,7 @@ Content-Type: application/json
 ```
 
 ```
-POST http://{device_ip}/rpc/Script.Stop
+POST {device_url}/rpc/Script.Stop
 Content-Type: application/json
 
 {
@@ -138,12 +138,12 @@ Content-Type: application/json
 }
 ```
 
-### 9. Получение статуса скрипта
+### 9. Get script status
 ```
-GET http://{device_ip}/rpc/Script.GetStatus?id={script_id}
+GET {device_url}/rpc/Script.GetStatus?id={script_id}
 ```
 
-Ответ:
+Response:
 ```json
 {
   "running": true,
@@ -154,63 +154,84 @@ GET http://{device_ip}/rpc/Script.GetStatus?id={script_id}
 }
 ```
 
-## Ограничения
+### 10. Get device configuration
+```
+GET {device_url}/rpc/Shelly.GetConfig
+```
 
-- **Максимальное количество скриптов**: 10 на устройство
-- **Максимальный размер скрипта**: 16 KB
-- **Максимальное использование памяти**: ~30 KB на скрипт
+### 11. Set device configuration
+```
+POST {device_url}/rpc/Shelly.SetConfig
+Content-Type: application/json
 
-## Примеры использования
+{ /* full or partial config */ }
+```
+
+## Limits
+
+- **Maximum number of scripts**: 10 per device
+- **Maximum script size**: 16 KB
+- **Maximum memory usage**: ~30 KB per script
+
+## Usage examples
 
 ### Python
 ```python
 import requests
-import json
 
-device_ip = "192.168.1.100"
+device_url = "http://192.168.1.100"
 
-# Получить список скриптов
-response = requests.get(f"http://{device_ip}/rpc/Script.List")
+# Get script list
+response = requests.get(f"{device_url}/rpc/Script.List")
 scripts = response.json()["scripts"]
 
-# Сохранить код скрипта
+# Save script code
 for script in scripts:
     response = requests.get(
-        f"http://{device_ip}/rpc/Script.GetCode",
+        f"{device_url}/rpc/Script.GetCode",
         params={"id": script["id"]}
     )
     code = response.json()["data"]
-    
+
     with open(f"script_{script['id']}.js", "w") as f:
         f.write(code)
 
-# Загрузить код скрипта
+# Upload script code
 with open("script_1.js", "r") as f:
     code = f.read()
 
-response = requests.post(
-    f"http://{device_ip}/rpc/Script.PutCode",
+requests.post(
+    f"{device_url}/rpc/Script.PutCode",
     json={"id": 1, "code": code}
 )
+
+# Get configuration
+config = requests.get(f"{device_url}/rpc/Shelly.GetConfig").json()
+
+# Set configuration
+requests.post(f"{device_url}/rpc/Shelly.SetConfig", json=config)
 ```
 
 ### cURL
 ```bash
-# Получить список скриптов
+# Get script list
 curl http://192.168.1.100/rpc/Script.List
 
-# Получить код скрипта
+# Get script code
 curl "http://192.168.1.100/rpc/Script.GetCode?id=1"
 
-# Загрузить код скрипта
+# Upload script code
 curl -X POST http://192.168.1.100/rpc/Script.PutCode \
   -H "Content-Type: application/json" \
   -d '{"id": 1, "code": "let x = 1;"}'
+
+# Get configuration
+curl http://192.168.1.100/rpc/Shelly.GetConfig
 ```
 
-## Аутентификация
+## Authentication
 
-Если на устройстве включена аутентификация:
+If authentication is enabled on the device:
 
 ```python
 import requests
@@ -218,23 +239,23 @@ from requests.auth import HTTPDigestAuth
 
 auth = HTTPDigestAuth('admin', 'password')
 response = requests.get(
-    f"http://{device_ip}/rpc/Script.List",
+    f"{device_url}/rpc/Script.List",
     auth=auth
 )
 ```
 
-## Обработка ошибок
+## Error handling
 
-Возможные коды ошибок:
+Possible error codes:
 
 - **-103**: Invalid argument
 - **-104**: Timeout
 - **-105**: Out of memory
 - **-114**: Resource exhausted (too many scripts)
 - **-115**: Not allowed
-- **401**: Unauthorized (требуется аутентификация)
+- **401**: Unauthorized (authentication required)
 
-Пример ответа с ошибкой:
+Example error response:
 ```json
 {
   "code": -103,
@@ -242,9 +263,9 @@ response = requests.get(
 }
 ```
 
-## WebSocket API (для продвинутых случаев)
+## WebSocket API (advanced)
 
-Shelly Gen2+ также поддерживает WebSocket для получения событий в реальном времени:
+Shelly Gen2+ also supports WebSocket for real-time events:
 
 ```javascript
 const ws = new WebSocket('ws://192.168.1.100/rpc');
@@ -253,7 +274,7 @@ ws.onmessage = (event) => {
   console.log('Message:', JSON.parse(event.data));
 };
 
-// Подписка на события скриптов
+// Subscribe to script events
 ws.send(JSON.stringify({
   "id": 1,
   "method": "Script.GetStatus",
@@ -261,8 +282,8 @@ ws.send(JSON.stringify({
 }));
 ```
 
-## Полезные ссылки
+## Useful links
 
-- [Официальная документация Shelly API](https://shelly-api-docs.shelly.cloud/)
-- [Примеры скриптов для Shelly](https://github.com/ALLTERCO/shelly-script-examples)
-- [Форум сообщества Shelly](https://community.shelly.cloud/)
+- [Official Shelly API documentation](https://shelly-api-docs.shelly.cloud/)
+- [Shelly script examples](https://github.com/ALLTERCO/shelly-script-examples)
+- [Shelly community forum](https://community.shelly.cloud/)

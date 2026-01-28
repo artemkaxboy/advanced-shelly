@@ -1,134 +1,132 @@
-# 📁 Правильная структура репозитория artemkaxboy/advanced-shelly
+# 📁 Correct repository structure for artemkaxboy/advanced-shelly
 
-## ✅ Ваша структура должна выглядеть так:
+## ✅ Your structure should look like this:
 
 ```
-artemkaxboy/advanced-shelly/                    ← Ваш репозиторий на GitHub
+artemkaxboy/advanced-shelly/                    ← your GitHub repository
 │
-├── .github/                                    
-│   ├── workflows/                              
-│   │   ├── hacs.yaml                          ← Валидация HACS
-│   │   ├── validate.yaml                      ← Проверка интеграции
-│   │   └── release.yaml                       ← Проверка релизов
+├── .github/
+│   ├── workflows/
+│   │   ├── hacs.yaml                          ← HACS validation
+│   │   ├── validate.yaml                      ← Integration checks
+│   │   └── release.yaml                       ← Release checks
 │   └── ISSUE_TEMPLATE/
 │       ├── bug_report.md
 │       └── feature_request.md
 │
-├── custom_components/                          ← 🔴 КРИТИЧЕСКИ ВАЖНО!
-│   └── advanced_shelly/                       ← 🔴 КРИТИЧЕСКИ ВАЖНО!
-│       ├── __init__.py                        ← Основная логика
-│       ├── config_flow.py                     ← UI настройки
-│       ├── const.py                           ← Константы
-│       ├── manifest.json                      ← 🔴 ОБЯЗАТЕЛЬНО!
-│       ├── services.yaml                      ← Описание сервисов
-│       ├── strings.json                       ← Базовые строки
-│       └── translations/                      ← Переводы
+├── custom_components/                          ← 🔴 CRITICAL!
+│   └── advanced_shelly/                       ← 🔴 CRITICAL!
+│       ├── __init__.py                        ← Core logic
+│       ├── config_flow.py                     ← UI setup
+│       ├── const.py                           ← Constants
+│       ├── manifest.json                      ← 🔴 REQUIRED!
+│       ├── services.yaml                      ← Service descriptions
+│       ├── strings.json                       ← Base strings
+│       └── translations/                      ← Translations
 │           ├── en.json
 │           └── ru.json
 │
-├── docs/                                      ← Документация
+├── docs/                                      ← Documentation
 │   ├── API.md
 │   └── DEVELOPMENT.md
 │
-├── examples/                                  ← Примеры
+├── examples/                                  ← Examples
 │   ├── automations.yaml
 │   └── lovelace.yaml
 │
-├── hacs.json                                  ← 🔴 ОБЯЗАТЕЛЬНО в корне!
-├── info.md                                    ← Описание для HACS UI
-├── README.md                                  ← Основная документация
-├── CHANGELOG.md                               ← История изменений
+├── hacs.json                                  ← 🔴 REQUIRED in root!
+├── info.md                                    ← Description for HACS UI
+├── README.md                                  ← Main documentation
+├── CHANGELOG.md                               ← Change history
 ├── LICENSE                                    ← MIT License
-├── QUICK_FIX.md                               ← Быстрые решения
-└── .gitignore                                 ← Git исключения
+└── .gitignore                                 ← Git ignores
 
-RELEASES:                                       ← 🔴 ОБЯЗАТЕЛЬНО!
-└── v1.0.0                                     ← Создайте этот релиз!
+RELEASES:                                       ← 🔴 REQUIRED!
+└── v1.0.15                                    ← Create this release!
 ```
 
-## 🎯 Чек-лист перед добавлением в HACS
+## 🎯 Checklist before adding to HACS
 
-### ✅ Обязательные требования:
+### ✅ Mandatory requirements:
 
-- [ ] Репозиторий публичный
-- [ ] Основная ветка называется `main` (не `master`)
-- [ ] **Создан релиз с тегом `v1.0.0`** ← САМОЕ ВАЖНОЕ!
-- [ ] Папка `custom_components/advanced_shelly/` в корне репозитория
-- [ ] Файл `manifest.json` существует
-- [ ] Файл `hacs.json` в корне репозитория
-- [ ] Версия в `manifest.json` = "1.0.0" (без `v`)
+- [ ] Repository is public
+- [ ] Default branch is `main` (not `master`)
+- [ ] **A release with tag `v1.0.15` exists** ← MOST IMPORTANT!
+- [ ] `custom_components/advanced_shelly/` folder is in the repository root
+- [ ] `manifest.json` exists
+- [ ] `hacs.json` is in the repository root
+- [ ] Version in `manifest.json` = "1.0.15" (no `v`)
 
-## 🚀 Последовательность действий для публикации
+## 🚀 Publication steps
 
-### Шаг 1: Загрузка файлов на GitHub
+### Step 1: Upload files to GitHub
 
 ```bash
-# Распакуйте архив
+# Extract the archive
 tar -xzf advanced_shelly.tar.gz
 cd advanced_shelly
 
-# Инициализируйте git
+# Initialize git
 git init
 git add .
-git commit -m "Initial commit: Advanced Shelly v1.0.0"
+git commit -m "Initial commit: Advanced Shelly v1.0.15"
 
-# Подключите к GitHub
+# Connect to GitHub
 git remote add origin https://github.com/artemkaxboy/advanced-shelly.git
 git branch -M main
 git push -u origin main
 ```
 
-### Шаг 2: Создание релиза (КРИТИЧЕСКИ ВАЖНО!)
+### Step 2: Create a release (CRITICAL!)
 
-#### Через веб-интерфейс GitHub:
-1. Откройте https://github.com/artemkaxboy/advanced-shelly
-2. Нажмите **"Releases"** → **"Create a new release"**
-3. Заполните:
-   - **Choose a tag**: `v1.0.0` (нажмите "Create new tag")
+#### Via GitHub web UI:
+1. Open https://github.com/artemkaxboy/advanced-shelly
+2. Click **"Releases"** → **"Create a new release"**
+3. Fill in:
+   - **Choose a tag**: `v1.0.15` (click "Create new tag")
    - **Target**: `main`
-   - **Release title**: `v1.0.0`
-   - **Description**: 
+   - **Release title**: `v1.0.15`
+   - **Description**:
      ```
-     Initial release - автоматическое резервное копирование скриптов Shelly Gen2+
-     
-     Основные возможности:
-     - Автоматический бэкап скриптов
-     - Восстановление из резервной копии
-     - Настройка через UI
-     - Поддержка нескольких устройств
-     ```
-4. Нажмите **"Publish release"**
+     Advanced Shelly v1.0.15
 
-#### Через командную строку:
+     Key features:
+     - Automatic backup of scripts and configuration
+     - Restore scripts and device configuration
+     - Configurable backup interval and path
+     - Sensors for last backup, script count, connectivity
+     ```
+4. Click **"Publish release"**
+
+#### Via command line:
 ```bash
-git tag -a v1.0.0 -m "Initial release v1.0.0"
-git push origin v1.0.0
+git tag -a v1.0.15 -m "Release v1.0.15"
+git push origin v1.0.15
 ```
-Затем создайте релиз на GitHub из этого тега.
+Then create the release on GitHub from this tag.
 
-### Шаг 3: Добавление в HACS
+### Step 3: Add to HACS
 
-В Home Assistant:
-1. **HACS** → **Integrations** → **⋮** (три точки)
+In Home Assistant:
+1. **HACS** → **Integrations** → **⋮** (three dots)
 2. **Custom repositories**
-3. Добавьте:
+3. Add:
    - **Repository**: `https://github.com/artemkaxboy/advanced-shelly`
    - **Category**: `Integration`
-4. Нажмите **"Add"**
-5. Найдите **"Advanced Shelly"** и нажмите **"Download"**
-6. Перезапустите Home Assistant
+4. Click **"Add"**
+5. Find **"Advanced Shelly"** and click **"Download"**
+6. Restart Home Assistant
 
-### Шаг 4: Настройка интеграции
+### Step 4: Configure the integration
 
 1. **Settings** → **Devices & Services** → **"+ Add Integration"**
-2. Найдите **"Advanced Shelly"**
-3. Введите IP-адрес вашего Shelly устройства
-4. Настройте интервал бэкапа (по умолчанию 24 часа)
-5. Нажмите **"Submit"**
+2. Find **"Advanced Shelly"**
+3. Enter the device URL and options
+4. Click **"Submit"**
 
-## 📝 Важные файлы и их содержимое
+## 📝 Important files and contents
 
-### hacs.json (в корне)
+### hacs.json (in root)
 ```json
 {
   "name": "Advanced Shelly",
@@ -141,7 +139,7 @@ git push origin v1.0.0
 }
 ```
 
-### manifest.json (в custom_components/advanced_shelly/)
+### manifest.json (in custom_components/advanced_shelly/)
 ```json
 {
   "domain": "advanced_shelly",
@@ -152,86 +150,86 @@ git push origin v1.0.0
   "integration_type": "device",
   "iot_class": "local_polling",
   "requirements": ["aiohttp>=3.8.0"],
-  "version": "1.0.0"
+  "version": "1.0.15"
 }
 ```
 
-## 🔍 Проверка готовности
+## 🔍 Readiness check
 
-### Проверьте на GitHub:
+### Check on GitHub:
 
-1. **Структура файлов:**
+1. **File structure:**
    ```
    https://github.com/artemkaxboy/advanced-shelly/tree/main/custom_components
    ```
-   Должна быть видна папка `advanced_shelly`
+   You should see the `advanced_shelly` folder
 
 2. **hacs.json:**
    ```
    https://github.com/artemkaxboy/advanced-shelly/blob/main/hacs.json
    ```
-   Должен существовать
+   It must exist
 
-3. **Релизы:**
+3. **Releases:**
    ```
    https://github.com/artemkaxboy/advanced-shelly/releases
    ```
-   Должен быть релиз `v1.0.0`
+   The `v1.0.15` release should be present
 
-### Через API:
+### Via API:
 
 ```bash
-# Проверить релизы
+# Check releases
 curl -s https://api.github.com/repos/artemkaxboy/advanced-shelly/releases | jq '.[].tag_name'
 
-# Должно вывести: "v1.0.0"
+# Should output: "v1.0.15"
 ```
 
 ## ❓ FAQ
 
-**Q: Почему именно `v1.0.0` с буквой `v`?**  
-A: Это стандарт версионирования в Git. Тег должен начинаться с `v`, но версия в manifest.json без `v`.
+**Q: Why does the tag need to be `v1.0.15` with a `v`?**  
+A: That is the standard Git versioning convention. The tag should start with `v`, but the version in `manifest.json` does not include `v`.
 
-**Q: Можно ли назвать ветку `master` вместо `main`?**  
-A: Технически да, но рекомендуется `main` как новый стандарт GitHub.
+**Q: Can I name the branch `master` instead of `main`?**  
+A: Technically yes, but `main` is recommended as the new GitHub standard.
 
-**Q: Обязательно ли создавать релиз для работы с HACS?**  
-A: Да! Без релиза HACS не сможет определить версию и скачать интеграцию.
+**Q: Is a release required for HACS to work?**  
+A: Yes. Without a release, HACS cannot determine the version and download the integration.
 
-**Q: Что делать если структура уже не такая?**  
-A: Переместите файлы согласно схеме выше. Главное - папка `custom_components/advanced_shelly/` должна быть в корне репозитория.
+**Q: What if the structure is already different?**  
+A: Move files to match the structure above. The `custom_components/advanced_shelly/` folder must be in the repository root.
 
-## 🆘 Если что-то пошло не так
+## 🆘 If something went wrong
 
-1. **Ошибка 404 при установке через HACS:**
-   → Создайте релиз `v1.0.0` (см. Шаг 2)
+1. **404 error during HACS install:**
+   → Create the `v1.0.15` release (see Step 2)
 
-2. **HACS не видит репозиторий:**
-   → Проверьте что репозиторий публичный
-   → Убедитесь что `hacs.json` в корне
+2. **HACS cannot see the repository:**
+   → Make sure the repository is public
+   → Ensure `hacs.json` is in the root
 
-3. **Интеграция не работает после установки:**
-   → Проверьте логи: `tail -f /config/home-assistant.log | grep advanced_shelly`
-   → Убедитесь что устройство Shelly доступно по сети
+3. **Integration does not work after install:**
+   → Check logs: `tail -f /config/home-assistant.log | grep advanced_shelly`
+   → Ensure the Shelly device is reachable on the network
 
-## 📊 Визуальная проверка
+## 📊 Visual check
 
-После загрузки на главной странице https://github.com/artemkaxboy/advanced-shelly вы должны видеть:
+After upload, on the main page https://github.com/artemkaxboy/advanced-shelly you should see:
 
 ```
 artemkaxboy/advanced-shelly                    main ↓
 
 📁 .github
-📁 custom_components       ← ВИДНО!
+📁 custom_components       ← VISIBLE!
 📁 docs
 📁 examples
-📄 hacs.json              ← ВИДНО!
+📄 hacs.json              ← VISIBLE!
 📄 README.md
 📄 LICENSE
 
-Releases: v1.0.0          ← ЕСТЬ РЕЛИЗ!
+Releases: v1.0.15          ← RELEASE PRESENT!
 ```
 
 ---
 
-**Следуйте этой инструкции и всё заработает!** ✅
+**Follow this guide and it will work!** ✅
