@@ -6,7 +6,6 @@ from datetime import datetime
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
@@ -64,23 +63,12 @@ class ShellyLastBackupSensor(SensorEntity):
     @property
     def device_info(self):
         """Return device information."""
-        identifiers = {(DOMAIN, self._entry.entry_id)}
-        device_id = self._coordinator.device_id
-        if device_id and device_id != "unknown":
-            identifiers.add((DOMAIN, device_id))
-            identifiers.add(("shelly", device_id))
-        connections = set()
-        if self._coordinator.device_mac:
-            connections.add((dr.CONNECTION_NETWORK_MAC, self._coordinator.device_mac))
-        info = {
-            "identifiers": identifiers,
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
             "name": f"Shelly Device {self._coordinator.device_name or self._entry.entry_id}",
             "manufacturer": "Shelly",
             "model": "Script Backup",
         }
-        if connections:
-            info["connections"] = connections
-        return info
 
     @property
     def extra_state_attributes(self):
@@ -134,23 +122,12 @@ class ShellyScriptCountSensor(SensorEntity):
     @property
     def device_info(self):
         """Return device information."""
-        identifiers = {(DOMAIN, self._entry.entry_id)}
-        device_id = self._coordinator.device_id
-        if device_id and device_id != "unknown":
-            identifiers.add((DOMAIN, device_id))
-            identifiers.add(("shelly", device_id))
-        connections = set()
-        if self._coordinator.device_mac:
-            connections.add((dr.CONNECTION_NETWORK_MAC, self._coordinator.device_mac))
-        info = {
-            "identifiers": identifiers,
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
             "name": f"Shelly Device {self._coordinator.device_name or self._entry.entry_id}",
             "manufacturer": "Shelly",
             "model": "Script Backup",
         }
-        if connections:
-            info["connections"] = connections
-        return info
 
     @property
     def available(self) -> bool:
