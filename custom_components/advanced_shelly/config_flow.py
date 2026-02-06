@@ -15,7 +15,8 @@ from homeassistant.helpers import selector
 from .shelly_client import ShellyClient
 from .const import (
     DOMAIN,
-    CONF_URL,
+    CONF_HOST,
+    CONF_PORT,
     CONF_NAME,
     CONF_PASSWORD,
     CONF_BACKUP_PATH,
@@ -23,7 +24,7 @@ from .const import (
     DEFAULT_BACKUP_PATH,
     DEFAULT_BACKUP_INTERVAL,
     DEFAULT_NAME,
-    SHELLY_USERNAME,
+    DEFAULT_PORT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,12 +32,13 @@ _LOGGER = logging.getLogger(__name__)
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
-    url = data[CONF_URL]
+    host = data[CONF_HOST]
+    port = data[CONF_PORT]
     password = data.get(CONF_PASSWORD, "")
 
     try:
-        _LOGGER.debug(f"Connecting to Shelly device at {url}")
-        async with ShellyClient(url, password) as client:
+        _LOGGER.debug(f"Connecting to Shelly device at {host}")
+        async with ShellyClient(host, port, password) as client:
 
             _LOGGER.debug("Getting device info")
             device_info = await client.get_device_info()
@@ -51,12 +53,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 
             device_id = device_info.get("id", "unknown")
             device_model = device_info.get("model", "unknown")
-            _LOGGER.info(f"Successfully validated Shelly device: {url} (ID: {device_id}, Model: {device_model})")
+            _LOGGER.info(f"Successfully validated Shelly device: {host} (ID: {device_id}, Model: {device_model})")
 
             # Test authentication by fetching status
             _ = await client.get_status()
             return {
-                "title": url,
+                "title": host,
                 "device_id": device_id,
                 "model": device_model,
             }
@@ -112,8 +114,23 @@ class AdvancedShellyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         data_schema = vol.Schema(
             {
-                vol.Required(CONF_URL): str,
-                vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
+                vol.Required(
+                    CONF_HOST,
+                    default=user_input.get(CONF_HOST) if user_input else vol.UNDEFINED
+                ): str,
+                vol.Required(
+                    CONF_PORT,
+                    default=user_input.get(CONF_PORT, DEFAULT_PORT) if user_input else DEFAULT_PORT
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=1, max=65535, step=1,
+                        mode=selector.NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Optional(
+                    CONF_NAME,
+                    default=user_input.get(CONF_NAME, DEFAULT_NAME) if user_input else DEFAULT_NAME
+                ): str,
                 vol.Optional(CONF_PASSWORD): selector.TextSelector(
                     selector.TextSelectorConfig(
                         type=selector.TextSelectorType.PASSWORD,

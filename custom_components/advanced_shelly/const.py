@@ -4,7 +4,7 @@ DOMAIN = "advanced_shelly"
 
 # Configuration
 CONF_HOST = "host"
-CONF_URL = "url"
+CONF_PORT = "port"
 CONF_NAME = "name"
 CONF_BACKUP_PATH = "backup_path"
 CONF_BACKUP_INTERVAL = "backup_interval"
@@ -15,6 +15,7 @@ SHELLY_USERNAME = "admin"  # Always 'admin' for Shelly devices
 DEFAULT_BACKUP_PATH = "/config/shelly_backups"
 DEFAULT_BACKUP_INTERVAL = 86400  # 24 hours in seconds
 DEFAULT_NAME = "Shelly Device"
+DEFAULT_PORT = 80
 
 # Services
 SERVICE_BACKUP_NOW = "backup_now"

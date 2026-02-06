@@ -4,8 +4,8 @@ from .const import SHELLY_USERNAME
 
 
 class ShellyClient:
-    def __init__(self, device_url: str, password: str):
-        self.device_url = device_url.rstrip('/')
+    def __init__(self, device_host: str, device_port: int, password: str):
+        self.device_url = f"http://{device_host}:{int(device_port)}"
         self.middlewares = ()
         if password:
             digest_auth = DigestAuthMiddleware(login=SHELLY_USERNAME, password=password)

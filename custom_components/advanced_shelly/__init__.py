@@ -16,7 +16,8 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
-    CONF_URL,
+    CONF_HOST,
+    CONF_PORT,
     CONF_PASSWORD,
     CONF_BACKUP_PATH,
     CONF_BACKUP_INTERVAL,
@@ -39,7 +40,8 @@ SIGNAL_UPDATE_SHELLY = "shelly_backup_update_{}"
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Shelly Scripts Backup from a config entry."""
-    url = entry.data[CONF_URL]
+    host = entry.data[CONF_HOST]
+    port = entry.data[CONF_PORT]
     password = entry.data.get(CONF_PASSWORD)
     backup_path = entry.data.get(CONF_BACKUP_PATH, DEFAULT_BACKUP_PATH)
     backup_interval = entry.data.get(CONF_BACKUP_INTERVAL, DEFAULT_BACKUP_INTERVAL)
@@ -48,7 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     Path(backup_path).mkdir(parents=True, exist_ok=True)
 
     # Initialize the coordinator
-    coordinator = ShellyBackupCoordinator(hass, url, password, backup_path)
+    coordinator = ShellyBackupCoordinator(hass, host, port, password, backup_path)
 
     # Test connection
     try:
@@ -196,13 +198,15 @@ class ShellyBackupCoordinator:
     def __init__(
             self,
             hass: HomeAssistant,
-            url: str,
+            host: str,
+            port: int,
             password: str | None,
             backup_path: str
     ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
-        self.url = url
+        self.host = host
+        self.port = port
         self.password = password
         self.backup_path = backup_path
 
@@ -227,7 +231,7 @@ class ShellyBackupCoordinator:
     async def update_device_status(self) -> bool:
         """Update device availability status."""
         try:
-            async with ShellyClient(self.url, self.password) as client:
+            async with ShellyClient(self.host, self.port, self.password) as client:
                 device_info = await client.get_device_info()
                 self.device_id = device_info.get("id", "unknown")
                 self.device_name = device_info.get("name", "unknown")
@@ -261,7 +265,7 @@ class ShellyBackupCoordinator:
             device_backup_path = Path(self.backup_path) / self.device_id
             device_backup_path.mkdir(parents=True, exist_ok=True)
 
-            async with ShellyClient(self.url, self.password) as client:
+            async with ShellyClient(self.host, self.port, self.password) as client:
                 # Backup device configuration
                 await self._backup_config(client, device_backup_path, self.device_id, self.device_name)
 
@@ -381,7 +385,7 @@ class ShellyBackupCoordinator:
 
             # Upload to device
             _LOGGER.info(f"Restoring script ID {script_id} from {script_file}")
-            async with ShellyClient(self.url, self.password) as client:
+            async with ShellyClient(self.host, self.port, self.password) as client:
                 await client.put_script_code(script_id, code)
             _LOGGER.info(f"Script ID {script_id} restored successfully")
 
@@ -415,7 +419,7 @@ class ShellyBackupCoordinator:
 
             # Restore configuration to device
             _LOGGER.info(f"Restoring configuration from {config_file}")
-            async with ShellyClient(self.url, self.password) as client:
+            async with ShellyClient(self.host, self.port, self.password) as client:
                 await client.set_config(config)
             _LOGGER.info(f"Configuration restored successfully for device {self.device_id}")
 

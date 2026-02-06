@@ -6,6 +6,7 @@
         "description": "Configure Shelly device for automatic script backups",
         "data": {
           "host": "Device IP address or hostname",
+          "port": "Device port (default: 80)",
           "name": "Device name",
           "password": "Password (optional)",
           "backup_path": "Backup directory path",
