@@ -274,6 +274,12 @@ class ShellyBackupCoordinator:
                 scripts = scripts_response.get("scripts", [])
                 self.script_count = len(scripts)
 
+                # Get active script IDs
+                active_script_ids = {str(script.get("id")) for script in scripts}
+
+                # Clean up old script backups
+                self._cleanup_old_backups(device_backup_path, active_script_ids)
+
                 if not scripts:
                     _LOGGER.info(f"No scripts found on device {self.device_id}")
                 else:
@@ -327,6 +333,37 @@ class ShellyBackupCoordinator:
             self.last_error = str(err)
             self._update_entities()
             raise
+
+    def _cleanup_old_backups(self, backup_path: Path, active_script_ids: set[str]) -> None:
+        """Remove backup files for scripts that no longer exist on the device."""
+        if not backup_path.exists():
+            return
+
+        deleted_count = 0
+        for file_path in backup_path.iterdir():
+            if not file_path.is_file():
+                continue
+
+            # Skip device config files
+            if file_path.name.startswith("device_config"):
+                continue
+
+            # Extract script ID from filename (format: {script_id}_{script_name}.{ext})
+            filename = file_path.stem  # Without extension
+            try:
+                # Script ID is the first part before underscore
+                script_id = filename.split("_", 1)[0]
+
+                # If script ID is not in active scripts, delete the file
+                if script_id not in active_script_ids:
+                    _LOGGER.info(f"Deleting old backup file: {file_path.name}")
+                    file_path.unlink()
+                    deleted_count += 1
+            except (IndexError, ValueError) as err:
+                _LOGGER.warning(f"Could not parse script ID from filename {file_path.name}: {err}")
+
+        if deleted_count > 0:
+            _LOGGER.info(f"Cleaned up {deleted_count} old backup files")
 
     async def _backup_config(
             self,
