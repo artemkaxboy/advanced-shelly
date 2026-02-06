@@ -136,14 +136,16 @@ class AdvancedShellyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         type=selector.TextSelectorType.PASSWORD,
                     )
                 ),
-                vol.Optional(CONF_BACKUP_PATH, default=DEFAULT_BACKUP_PATH): str,
                 vol.Optional(
-                    CONF_BACKUP_INTERVAL, default=DEFAULT_BACKUP_INTERVAL
+                    CONF_BACKUP_PATH,
+                    default=user_input.get(CONF_BACKUP_PATH, DEFAULT_BACKUP_PATH) if user_input else DEFAULT_BACKUP_PATH
+                ): str,
+                vol.Optional(
+                    CONF_BACKUP_INTERVAL,
+                    default=user_input.get(CONF_BACKUP_INTERVAL, DEFAULT_BACKUP_INTERVAL) if user_input else DEFAULT_BACKUP_INTERVAL
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
-                        min=3600,
-                        max=604800,
-                        step=3600,
+                        min=3600, max=604800, step=3600,
                         unit_of_measurement="seconds",
                         mode=selector.NumberSelectorMode.BOX,
                     )
