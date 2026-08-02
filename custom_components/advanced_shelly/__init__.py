@@ -65,7 +65,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Schedule periodic backups
     async def periodic_backup(now):
         """Perform periodic backup."""
-        await coordinator.backup_scripts()
+        try:
+            await coordinator.backup_scripts()
+        except Exception as err:  # noqa: BLE001 - never let the timer task die
+            _LOGGER.error(f"Periodic backup failed: {err}")
 
     cancel_interval = async_track_time_interval(
         hass, periodic_backup, timedelta(seconds=backup_interval)
@@ -73,7 +76,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][f"{entry.entry_id}_cancel"] = cancel_interval
 
     # Perform initial backup
-    await coordinator.backup_scripts()
+    await periodic_backup(None)
 
     # Register services
     await async_setup_services(hass)
@@ -228,16 +231,18 @@ class ShellyBackupCoordinator:
                 SIGNAL_UPDATE_SHELLY.format(self.device_id)
             )
 
-    async def update_device_status(self) -> bool:
-        """Update device availability status."""
+    async def update_device_status(self, client: ShellyClient | None = None) -> bool:
+        """Update device availability status.
+
+        Reuses `client` when given so a backup run does not open a second
+        session (and a second digest handshake) just to read the device info.
+        """
         try:
-            async with ShellyClient(self.host, self.port, self.password) as client:
-                device_info = await client.get_device_info()
-                self.device_id = device_info.get("id", "unknown")
-                self.device_name = device_info.get("name", "unknown")
-                self.last_seen = dt_util.utcnow()
-                self.is_available = True
-                self.last_error = None
+            if client is not None:
+                await self._read_device_info(client)
+            else:
+                async with ShellyClient(self.host, self.port, self.password) as own_client:
+                    await self._read_device_info(own_client)
 
             # Update entity states
             self._update_entities()
@@ -251,21 +256,30 @@ class ShellyBackupCoordinator:
             self._update_entities()
             return False
 
+    async def _read_device_info(self, client: ShellyClient) -> None:
+        """Read device info and mark the device as available."""
+        device_info = await client.get_device_info()
+        self.device_id = device_info.get("id", "unknown")
+        self.device_name = device_info.get("name", "unknown")
+        self.last_seen = dt_util.utcnow()
+        self.is_available = True
+        self.last_error = None
+
     async def backup_scripts(self) -> None:
         """Backup all scripts from the device."""
         try:
-            # Update device status first
-            if not await self.update_device_status():
-                _LOGGER.error("Device is offline, skipping backup")
-                return
-
-            _LOGGER.info(f"Starting backup for device {self.device_name} ({self.device_id})")
-
-            # Create device-specific backup directory
-            device_backup_path = Path(self.backup_path) / self.device_id
-            device_backup_path.mkdir(parents=True, exist_ok=True)
-
             async with ShellyClient(self.host, self.port, self.password) as client:
+                # Update device status first
+                if not await self.update_device_status(client):
+                    _LOGGER.error("Device is offline, skipping backup")
+                    return
+
+                _LOGGER.info(f"Starting backup for device {self.device_name} ({self.device_id})")
+
+                # Create device-specific backup directory
+                device_backup_path = Path(self.backup_path) / self.device_id
+                device_backup_path.mkdir(parents=True, exist_ok=True)
+
                 # Backup device configuration
                 await self._backup_config(client, device_backup_path, self.device_id, self.device_name)
 

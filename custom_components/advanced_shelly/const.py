@@ -17,6 +17,12 @@ DEFAULT_BACKUP_INTERVAL = 86400  # 24 hours in seconds
 DEFAULT_NAME = "Shelly Device"
 DEFAULT_PORT = 80
 
+# RPC rate limiting (recent firmware answers 429 to bursts of RPC calls)
+DEFAULT_REQUEST_INTERVAL = 0.5  # minimum seconds between RPC calls
+DEFAULT_MAX_RETRIES = 4  # retries after a 429 before giving up
+DEFAULT_BACKOFF = 1.0  # first backoff in seconds, doubled on each retry
+MAX_BACKOFF = 30.0
+
 # Services
 SERVICE_BACKUP_NOW = "backup_now"
 SERVICE_RESTORE_SCRIPT = "restore_script"
